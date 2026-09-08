@@ -1,0 +1,3 @@
+# Suiteql Patterns
+
+Use explicit, bounded SELECT columns and parameter placeholders. Mapped aliases are lowercase; normalize types at the API boundary. Custom list/record IDs and name fields must be verified, not inferred from unrelated examples. Transaction totals, line grain, status formats and type names differ across APIs: inspect schema and reconcile an example before generalizing. Bind all filters and use a deterministic ORDER BY. Return a failure envelope on query errors; never silently return an empty list. Log a correlation code and row count only, never raw rows, SQL parameters or credentials.
