@@ -1,83 +1,14 @@
-/* ============================================
-   CSS Cascade Layers
-   Order matters: later layers have higher priority
-   NetSuite's CSS will be unlayered (lowest priority)
-   ============================================ */
-   @layer base, tailwind, primevue, app;
-
-   /* Import Tailwind into its own layer with !important for NetSuite compatibility */
-   @import "tailwindcss" layer(tailwind) important;
-   
-   /* ============================================
-      PrimeVue Layer - Component overrides
-      ============================================ */
-   @layer primevue {
-     .p-datatable .p-datatable-tbody > tr {
-       transition: background-color 0.15s ease;
-     }
-   
-     .p-datatable .p-datatable-tbody > tr:hover {
-       background-color: #f1f5f9;
-     }
-   
-     .p-toast {
-       z-index: 10000;
-     }
-   
-     .p-dialog-mask {
-       background-color: rgba(15, 23, 42, 0.5);
-       backdrop-filter: blur(2px);
-     }
-   
-     .p-select-panel {
-       max-height: 300px;
-     }
-   }
-   
-   /* ============================================
-      App Layer - Highest priority custom styles
-      ============================================ */
-   @layer app {
-     /* Override NetSuite's margin: revert on paragraphs */
-     p {
-       margin: 0 !important;
-     }
-   
-     /* Clickable elements - ensure pointer cursor */
-     .clickable,
-     [role="button"] {
-       cursor: pointer;
-     }
-   
-     /* Custom utilities */
-     .line-clamp-2 {
-       display: -webkit-box;
-       -webkit-line-clamp: 2;
-       -webkit-box-orient: vertical;
-       overflow: hidden;
-     }
-   
-     /* Smooth scrolling */
-     html {
-       scroll-behavior: smooth;
-     }
-   
-     /* Custom scrollbar */
-     ::-webkit-scrollbar {
-       width: 8px;
-       height: 8px;
-     }
-   
-     ::-webkit-scrollbar-track {
-       background: #f1f5f9;
-     }
-   
-     ::-webkit-scrollbar-thumb {
-       background: #cbd5e1;
-       border-radius: 4px;
-     }
-   
-     ::-webkit-scrollbar-thumb:hover {
-       background: #94a3b8;
-     }
-    }
+#nvs-app { color: #1e293b; font: 16px/1.6 system-ui, sans-serif; }
+#nvs-app * { box-sizing: border-box; }
+#nvs-app main { padding: 3rem 1rem; }
+#nvs-app .hello-card { max-width: 42rem; margin: 0 auto; border: 1px solid #cbd5e1; border-radius: 1rem; padding: 2rem; background: #fff; }
+#nvs-app h1 { font-size: 2rem; line-height: 1.2; }
+#nvs-app h2 { font-size: 1.3rem; }
+#nvs-app .eyebrow { font-size: .8rem; letter-spacing: .12em; color: #475569; }
+#nvs-app form { display: grid; gap: .7rem; margin: 1.5rem 0; }
+#nvs-app input { width: 100%; padding: .7rem; border: 1px solid #64748b; border-radius: .4rem; font: inherit; }
+#nvs-app button { cursor: pointer; padding: .75rem 1rem; border: 0; border-radius: .4rem; background: #164e63; color: #fff; font: inherit; }
+#nvs-app button:disabled { opacity: .65; cursor: wait; }
+#nvs-app :focus-visible { outline: 3px solid #0891b2; outline-offset: 3px; }
+#nvs-app .hint { font-size: .85rem; color: #475569; }
+#nvs-app [role="alert"] { color: #991b1b; }

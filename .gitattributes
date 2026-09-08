@@ -1,0 +1,6 @@
+* text=auto eol=lf
+*.png binary
+*.ico binary
+BRIEF*.md export-ignore
+STATUS*.md export-ignore
+REPORT*.md export-ignore
