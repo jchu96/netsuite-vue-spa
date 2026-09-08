@@ -2,7 +2,7 @@
 
 Generated documentation · 2026-09-08 · package version 1.0.0 · SuiteScript 2.1
 
-This Account Customization Project hosts the Vue frontend and exposes one read-only RESTlet lookup. It creates a dedicated **Hello Record** custom record type; it does not read or modify transaction records. A synthetic local proxy response lets the frontend run before an account is available.
+This Account Customization Project hosts the Vue frontend and exposes one read-only RESTlet lookup. It creates a dedicated **Hello Record** custom record type and an unassigned viewer role with View permission; it does not read or modify transaction records. A synthetic local proxy response lets the frontend run before an account is available.
 
 ## Source ownership
 

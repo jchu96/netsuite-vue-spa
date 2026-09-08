@@ -1,0 +1,12 @@
+<role scriptid="customrole_{PREFIX}_hello_viewer">
+  <centertype>ACCOUNTCENTER</centertype>
+  <name>{PROJECT_NAME_DISPLAY} Viewer</name>
+  <coreadminpermission>F</coreadminpermission>
+  <permissions>
+    <permission>
+      <permkey>[scriptid=customrecord_{PREFIX}_hello]</permkey>
+      <permlevel>VIEW</permlevel>
+      <restriction>EDIT</restriction>
+    </permission>
+  </permissions>
+</role>

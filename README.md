@@ -49,7 +49,7 @@ flowchart LR
 | `apps/vite-spa/src/` | Vue page, Pinia store and scoped styles |
 | `apps/vite-spa/plugins/netsuite-api.ts` | Typed client with runtime response validation |
 | `apps/vite-spa/server/` | Development-only caller checks and HMAC-SHA256 TBA signing |
-| `apps/netsuite/_templates/` | Source templates for two scripts and three SDF objects |
+| `apps/netsuite/_templates/` | Source templates for two scripts and four SDF objects |
 | `apps/netsuite/src/` | Generated SDF project; built HTML is ignored by Git |
 | `scripts/generate.mjs` | Validated template substitution and overwrite protection |
 | `.agents/skills/` | Fourteen portable NetSuite skills with provenance and licenses |
@@ -99,7 +99,7 @@ sequenceDiagram
   Proxy-->>Browser: Result or generic upstream error
 ```
 
-Use a dedicated least-privilege sandbox role. Configure record permissions and deployment audience for your account; do not solve permission failures by expanding the role indiscriminately.
+The generated `customrole_nvs_hello_viewer` has View permission on Hello Record and is not assigned to users automatically. Configure its account-specific access and deployment audience before use; do not solve permission failures by expanding the role indiscriminately.
 
 ## Move to a sandbox
 

@@ -1,0 +1,12 @@
+<role scriptid="customrole_nvs_hello_viewer">
+  <centertype>ACCOUNTCENTER</centertype>
+  <name>Hello Record Viewer</name>
+  <coreadminpermission>F</coreadminpermission>
+  <permissions>
+    <permission>
+      <permkey>[scriptid=customrecord_nvs_hello]</permkey>
+      <permlevel>VIEW</permlevel>
+      <restriction>EDIT</restriction>
+    </permission>
+  </permissions>
+</role>

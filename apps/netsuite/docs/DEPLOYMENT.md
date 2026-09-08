@@ -7,7 +7,7 @@ Documented 2026-09-08. These steps require an owner's explicit account authoriza
 1. Run `npm run setup` and `npm run check` from the repository root. Confirm the byte-verified HTML copy and structural receipt.
 2. Install Oracle's [SuiteCloud CLI for Node.js](https://github.com/oracle/netsuite-suitecloud-sdk/tree/master/packages/node-cli) and its required Java runtime using Oracle's current prerequisites. This project was structurally tested with Node 22; the inspected owner CLI was 3.2.0 with Java SDK 2026.1.
 3. Choose a **sandbox** and confirm Server SuiteScript and Custom Records are enabled. Use an authorized deployment role; do not put account configuration, `.nstba`, certificates or tokens in Git.
-4. Review the [inventory](INVENTORY.md). This is an Account Customization Project with two scripts and a permission-list custom record, not a managed SuiteApp. It has no account-specific role dependencies.
+4. Review the [inventory](INVENTORY.md). This is an Account Customization Project with two scripts, a permission-list custom record and a dedicated viewer role, not a managed SuiteApp. It has no account-specific role dependencies.
 
 ## Validate and deploy
 
@@ -29,7 +29,7 @@ The tested CLI requires account context even for local `project:validate`. Local
 
 - Both deployments begin in **TESTING**. Test as the authorized script owner initially; an ordinary user's audience must be configured deliberately before release.
 - Keep the Suitelet's anonymous access disabled (`isonline=F`) and its current-role execution. Do not add Administrator run-as or universal audiences.
-- Grant the intended viewer role **View** on `customrecord_nvs_hello`, using the custom record's permission list. That custom record ID is the permission key, not a guessed standard permission. No role definition is shipped because user and role IDs belong to your account.
+- The generated `customrole_nvs_hello_viewer` and `customrecord_nvs_hello` have matching **View** permissions. NetSuite requires a nonempty permission list when creating this record type; server validation and deployment preview alone may not detect an empty list. The role is unassigned: review account-specific role settings and assign it deliberately before viewer testing. It supplies only the Hello Record permission; it does not grant token creation, integration access or administrative permissions.
 - Give a fixture maintainer enough permission to create one Hello Record named **Hello world**, then test lookup with the viewer role. Do not grant Create/Edit just to read it.
 - If required by the account for the hosting role, the bundled permission reference identifies `LIST_FILECABINET` as Documents and Files; use **View**, not Create, for rendering. Confirm this requirement in the sandbox rather than granting it automatically.
 - Obtain the internal Suitelet URL from its deployment. The Suitelet resolves the RESTlet path; no account hostname belongs in the production build.

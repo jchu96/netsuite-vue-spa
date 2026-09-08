@@ -76,7 +76,7 @@ These additions make that deployment boundary and the example contract explicit.
 
 | Area | Paths | Added behavior and reference |
 |---|---|---|
-| SDF project and generator | `apps/netsuite/_templates/`, `apps/netsuite/src/`, `scripts/generate.mjs`, `template.config.json` | Validated generation of two SuiteScript 2.1 scripts, three objects, manifest and deploy XML. The authenticated Suitelet hosts HTML; the current-role RESTlet binds an exact-name query. See [Make it yours](../README.md#make-it-yours) and [inventory](../apps/netsuite/docs/INVENTORY.md). |
+| SDF project and generator | `apps/netsuite/_templates/`, `apps/netsuite/src/`, `scripts/generate.mjs`, `template.config.json` | Validated generation of two SuiteScript 2.1 scripts, four objects, manifest and deploy XML. The authenticated Suitelet hosts HTML; the current-role RESTlet binds an exact-name query. See [Make it yours](../README.md#make-it-yours) and [inventory](../apps/netsuite/docs/INVENTORY.md). |
 | Build handoff | `apps/vite-spa/scripts/copy-to-sdf.mjs` | Copies built HTML into the configured SDF folder and verifies identical bytes; [frontend README](../apps/vite-spa/README.md). |
 | Dev proxy | `apps/vite-spa/server/config.cjs`, `index.cjs`, `oauth.cjs` | New implementations of the upstream development role, with a synthetic default and optional authorized live mode; [local proxy](../apps/netsuite/docs/API.md#local-proxy). |
 | Frontend state and typing | `apps/vite-spa/src/stores/helloStore.ts`, `tsconfig.json`, `tsconfig.node.json` | Cancellable lookup state and stale-response protection; [architecture](../apps/netsuite/docs/ARCHITECTURE.md). |

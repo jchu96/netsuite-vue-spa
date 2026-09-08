@@ -12,4 +12,11 @@
   <showid>T</showid>
   <showlastmodified>F</showlastmodified>
   <shownotes>F</shownotes>
+  <permissions>
+    <permission>
+      <permittedrole>[scriptid=customrole_nvs_hello_viewer]</permittedrole>
+      <permittedlevel>VIEW</permittedlevel>
+      <restriction>EDIT</restriction>
+    </permission>
+  </permissions>
 </customrecordtype>

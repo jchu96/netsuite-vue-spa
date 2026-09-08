@@ -15,11 +15,12 @@ Both scripts use `@NApiVersion 2.1` and `@NModuleScope SameAccount`.
 
 | XML under src/Objects | Object ID | Deployment / access |
 |---|---|---|
+| [customrole_nvs_hello_viewer.xml](../src/Objects/customrole_nvs_hello_viewer.xml) | `customrole_nvs_hello_viewer` | Unassigned role; View on Hello Record only; no core administration permission |
 | [customrecord_nvs_hello.xml](../src/Objects/customrecord_nvs_hello.xml) | `customrecord_nvs_hello` | Permission-list access; built-in Name field enabled; no custom fields |
 | [customscript_nvs_hello_rl.xml](../src/Objects/customscript_nvs_hello_rl.xml) | `customscript_nvs_hello_rl` | `customdeploy_nvs_hello_rl`; deployed, TESTING, ERROR logging |
 | [customscript_nvs_hello_sl.xml](../src/Objects/customscript_nvs_hello_sl.xml) | `customscript_nvs_hello_sl` | `customdeploy_nvs_hello_sl`; deployed, TESTING, ERROR logging, anonymous access disabled |
 
-The XML intentionally supplies no universal audience, account-specific role IDs, or Administrator run-as role. The Suitelet uses the current role; the RESTlet uses its authenticated caller. The owner configures the sandbox audience and the custom record's View permission before testing as an ordinary user.
+The XML intentionally supplies no universal audience, account-specific role IDs, or Administrator run-as role. The Suitelet uses the current role; the RESTlet uses its authenticated caller. The record and viewer role declare matching View permission with EDIT restriction (read access is unrestricted within this example record type; no write permission is granted). The owner configures account-specific role settings, assignment and the sandbox audience before testing as an ordinary user.
 
 ## Deployment closure
 

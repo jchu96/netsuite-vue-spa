@@ -8,6 +8,7 @@ const folder = 'FileCabinet/SuiteScripts/' + config.projectFolder + '/';
 const rl = config.projectName + '_SPA_Data_RL.js';
 const sl = config.projectName + '_SPA_Render_SL.js';
 const recordObject = 'Objects/customrecord_' + config.prefix + '_hello.xml';
+const roleObject = 'Objects/customrole_' + config.prefix + '_hello_viewer.xml';
 const rlObject = 'Objects/customscript_' + config.prefix + '_hello_rl.xml';
 const slObject = 'Objects/customscript_' + config.prefix + '_hello_sl.xml';
 let fixture;
@@ -17,7 +18,7 @@ beforeEach(() => {
 });
 afterEach(() => rmSync(fixture, { recursive: true, force: true }));
 test('account-free SDF structure references all real files and parses every script', () => {
-  expect(validateStructure(path.resolve('src'))).toEqual({ objects: 3, scripts: 2, artifact: true });
+  expect(validateStructure(path.resolve('src'))).toEqual({ objects: 4, scripts: 2, artifact: true });
 });
 test.each([
  ['manifest.xml', () => '<manifest>'],
@@ -70,7 +71,7 @@ test('generator reproduces tracked source bytes and refuses overwrite', () => {
   const generated = path.join(fixture, 'fresh');
   const generator = path.resolve('../../scripts/generate.mjs');
   execFileSync(process.execPath, [generator, '--output', generated]);
-  for (const file of ['manifest.xml', 'deploy.xml', recordObject, rlObject, slObject, folder + rl, folder + sl]) {
+  for (const file of ['manifest.xml', 'deploy.xml', recordObject, roleObject, rlObject, slObject, folder + rl, folder + sl]) {
     expect(readFileSync(path.join(generated, file))).toEqual(readFileSync(path.resolve('src', file)));
   }
   expect(() => execFileSync(process.execPath, [generator, '--output', generated], { stdio: 'pipe' })).toThrow(/Refusing to overwrite/);
