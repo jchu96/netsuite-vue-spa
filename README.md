@@ -8,7 +8,26 @@ For NetSuite developers who want a working starting point, a local demo without 
 ![Node: >=22.12](https://img.shields.io/badge/Node-%3E%3D22.12-green)
 ![Checks: account-free](https://img.shields.io/badge/checks-account--free-blue)
 
-[Quickstart](#try-it-in-five-minutes) · [Architecture](#how-it-fits-together) · [Customize](#make-it-yours) · [Security](#security-model) · [Sandbox](#move-to-a-sandbox) · [Deployment scope](#deployment-scope) · [Troubleshooting](#troubleshooting) · [Docs](docs/README.md) · [Credits](#credits)
+[Why](#why-this-exists) · [Quickstart](#try-it-in-five-minutes) · [Architecture](#how-it-fits-together) · [Customize](#make-it-yours) · [Security](#security-model) · [Sandbox](#move-to-a-sandbox) · [Deployment scope](#deployment-scope) · [Troubleshooting](#troubleshooting) · [Docs](docs/README.md) · [Credits](#credits)
+
+## Why this exists
+
+I ran technology for a distributor that lived in NetSuite. Every internal tool the business asked for was
+the same job: a screen NetSuite's own UI could not give us, a RESTlet behind it, and someone's credentials
+wired in by hand. Over seven years I built that shape enough times to know exactly which parts are the
+same every time and which parts hurt: the proxy that leaks a token into the browser bundle, the SuiteQL
+string someone concatenates at two in the morning, the role nobody declared, the first deploy that fails
+because the manifest and the script ids disagree.
+
+This is the boilerplate I wish I had been handed on day one. It started as Bibek Shrestha's Vue/Vite SPA
+(credited below), grew into an internal template, and was rewritten for publication: the client-specific
+parts removed, the safety boundaries made explicit and tested, and the whole thing deployed to a real
+NetSuite sandbox before it went public. The template ships a generator, the account-free checks, and the
+one working example, so that "does it deploy" is a question the repository answers rather than one you
+discover.
+
+If you build NetSuite apps for a living, this is the ten minutes of scaffolding you keep rebuilding.
+If you are new to SuiteScript, the security model section is the part to read first.
 
 ## Try it in five minutes
 
