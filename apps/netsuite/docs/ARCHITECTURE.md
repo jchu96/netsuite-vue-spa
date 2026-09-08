@@ -28,12 +28,10 @@ In local demo mode, the client opens a session with the Node proxy, then sends t
 There is no persistent browser cache, background worker, mutation queue or server-side cache. A query error is an error, not an empty result. The active role controls record access; query metadata errors are not hidden by a permissive provider.
 
 ```mermaid
-erDiagram
-    HELLO_RECORD {
-        int id PK
-        string name
-        boolean isinactive
-    }
+flowchart LR
+    Record["Hello Record"] --> ID["id: int, primary key"]
+    Record --> Name["name: string"]
+    Record --> Inactive["isinactive: boolean"]
 ```
 
 `name` is the enabled built-in record name, not a custom field. This schema belongs to this project's custom record XML; the standard Records Browser is supplemental reference, not proof of an account's custom schema.

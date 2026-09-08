@@ -1,8 +1,14 @@
 # NetSuite Vue SPA
 
-Build a Vue application that lives inside NetSuite: a small, read-only **Hello Record** example with Vue 3, TypeScript, Pinia, PrimeVue, a SuiteScript 2.1 RESTlet and a hosting Suitelet.
+Build a Vue application that lives inside NetSuite: a small, read-only Hello Record example with Vue 3, TypeScript, Pinia, PrimeVue, a SuiteScript 2.1 RESTlet and a hosting Suitelet.
 
 For NetSuite developers who want a working starting point, a local demo without an account, and explicit boundaries between browser code, development credentials and SDF deployment.
+
+![License: MIT](https://img.shields.io/badge/license-MIT-blue)
+![Node: >=22.12](https://img.shields.io/badge/Node-%3E%3D22.12-green)
+![Checks: account-free](https://img.shields.io/badge/checks-account--free-blue)
+
+[Quickstart](#try-it-in-five-minutes) · [Architecture](#how-it-fits-together) · [Customize](#make-it-yours) · [Security](#security-model) · [Sandbox](#move-to-a-sandbox) · [Deployment scope](#deployment-scope) · [Troubleshooting](#troubleshooting) · [Docs](docs/README.md) · [Credits](#credits)
 
 ## Try it in five minutes
 
@@ -66,16 +72,41 @@ Generation refuses invalid identifiers and existing files unless `--force` is ex
 
 ## Security model
 
+> [!WARNING]
+> Never put secrets in `VITE_` variables: that prefix is public browser configuration. Only `VITE_RESTLET_URL` and `VITE_API_SERVER_PORT` are allowed.
+
 - **Browser:** only `VITE_RESTLET_URL` and `VITE_API_SERVER_PORT` are allowed. They are public routing metadata. Other `VITE_` keys fail configuration validation; never put secrets under that prefix. No tokens are stored in localStorage.
 - **Development proxy:** binds `127.0.0.1`, verifies exact Origin and Host, requires a per-run session token for `/api`, bounds JSON to 8 KB and upstream requests to 10 seconds, rejects redirects, and allows only the read-only task. The token stays in browser memory. This protects against other browser origins and network clients; it does not isolate the proxy from trusted or malicious processes running as the local user.
 - **TBA:** `TBA_*` credentials are read only by the Node development server in `NETSUITE_MODE=live`. The production bundle does not include the proxy or credentials. The default is `demo`; changing to `live` requires replacing the placeholders and matching the account hostname to its realm.
 - **NetSuite:** authenticated Suitelet, current-role execution, permission-list custom record access, bound query values, and generic error responses. Logs contain only a generated reference and error code. Script deployments start in `TESTING`, with no universal audience or Administrator run-as role.
 
+The first request in optional **live local development** follows this path:
+
+```mermaid
+sequenceDiagram
+  participant Browser
+  participant Proxy as Loopback proxy
+  participant RL as RESTlet
+  Browser->>Proxy: POST /session
+  Proxy->>Proxy: Verify exact Origin and Host
+  Proxy-->>Browser: Per-run session token
+  Note over Browser: Keep token in memory
+  Browser->>Proxy: POST /api with X-Proxy-Token and helloRecord request
+  Proxy->>Proxy: Verify Origin, Host, token and request shape
+  Proxy->>Proxy: Sign with server-only TBA credentials
+  Proxy->>RL: POST fixed RESTlet target with OAuth Authorization
+  RL-->>Proxy: Record, null or error response
+  Proxy-->>Browser: Result or generic upstream error
+```
+
 Use a dedicated least-privilege sandbox role. Configure record permissions and deployment audience for your account; do not solve permission failures by expanding the role indiscriminately.
 
 ## Move to a sandbox
 
-The owner performs account setup and validation separately. The [SDF deployment guide](apps/netsuite/docs/DEPLOYMENT.md) lists the prerequisites, exact script/object inventory, testing audience, record fixture and verification steps. `suitecloud project:validate` requires an account context in the tested CLI, even for its local mode; it is not part of this repository's account-free check.
+> [!IMPORTANT]
+> The owner performs account setup and sandbox validation separately. The account-free check does not authenticate, validate against an account or deploy.
+
+The [SDF deployment guide](apps/netsuite/docs/DEPLOYMENT.md) lists the prerequisites, exact script/object inventory, testing audience, record fixture and verification steps. `suitecloud project:validate` requires an account context in the tested CLI, even for its local mode; it is not part of this repository's account-free check.
 
 Start with the [SDF project README](apps/netsuite/README.md), [architecture](apps/netsuite/docs/ARCHITECTURE.md), [API contract](apps/netsuite/docs/API.md), and [guided code walkthrough](apps/netsuite/docs/LEARNING.md). The [skill application map](docs/SKILLS.md) shows how the included NetSuite guidance applies to this template.
 

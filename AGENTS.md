@@ -19,23 +19,10 @@
 - Demo/build/tests require no account. Account setup, sandbox validation and deployment are separate owner actions.
 - Keep skill copies as real directories with provenance/licenses; no private schemas, accounts or machine paths.
 
-## NetSuite skill routing
-| Work | Skill under .agents/skills/ |
-|---|---|
-| SuiteScript, SuiteQL and tests | netsuite-dev-guidelines |
-| Vue, Pinia and PrimeVue | netsuite-spa-frontend |
-| RESTlet contract tests | netsuite-restlet-test |
-| Bounded queries and schema | netsuite-query |
-| Error signature triage | netsuite-error-triage |
-| Optional authorized MCP setup | netsuite-mcp-connector |
-| Standard fields | netsuite-suitescript-records-reference |
-| SDF XML and deployment safety | netsuite-sdf-safe-guide |
-| Security review | netsuite-owasp-secure-coding |
-| Role and permission keys | netsuite-sdf-roles-and-permissions |
-| SDF project documentation | netsuite-sdf-project-documentation |
-| SuiteScript migration checks | netsuite-suitescript-upgrade |
-| Code explanation and learning | netsuite-suitescript-learning |
-| Authorized connector sessions | netsuite-ai-connector-instructions |
+## Scoped guidance
+- Frontend work: [apps/vite-spa/AGENTS.md](apps/vite-spa/AGENTS.md).
+- SDF work: [apps/netsuite/AGENTS.md](apps/netsuite/AGENTS.md).
+- NetSuite skill routing and application: [docs/SKILLS.md](docs/SKILLS.md).
 
 ## Commit attribution
 - AI-authored commits include the agent's own `Co-Authored-By` attribution.

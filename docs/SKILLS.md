@@ -19,6 +19,6 @@ The fourteen included skills are real directories with a `PROVENANCE.md` and lic
 | netsuite-suitescript-learning | Guided RESTlet/Suitelet walkthrough, key concepts, pitfalls and comprehension checks |
 | netsuite-ai-connector-instructions | Metadata and bounded-query conduct for future authorized connector sessions; no live tool use inferred from installation |
 
-[AGENTS.md](../AGENTS.md) routes all fourteen skills by task. The root and SDF READMEs remain the project-specific command and deployment contract; generic vendor examples do not authorize account actions or override the offline scope.
+[AGENTS.md](../AGENTS.md) points here for task-specific skill guidance. The root and SDF READMEs remain the project-specific command and deployment contract; generic vendor examples do not authorize account actions or override the offline scope.
 
 Excluded material includes organization-specific adapters, finance-analysis guidance and Oracle UIF frontend guidance. This application uses Vue/PrimeVue and no financial records or UIF runtime. Required open-source copyright attributions are retained; private account/person context and executable credential-discovery helpers are omitted.
