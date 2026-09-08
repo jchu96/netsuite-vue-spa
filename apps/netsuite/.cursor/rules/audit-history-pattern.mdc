@@ -1,0 +1,251 @@
+---
+title: Audit History Pattern
+description: Standardized audit entry structure and patterns for project tracking
+tags: [netsuite, audit, logging, json, patterns]
+lastUpdated: "2025-12-06"
+---
+
+# Audit History Pattern
+
+## Consistent Audit Entry Structure
+
+When creating audit history entries, always place all event-specific data in the `details` object for consistency and predictability.
+
+**❌ WRONG - Data at root level:**
+
+```javascript
+addAuditEntry(recordId, {
+    type: 'status_change',
+    from: 'old_status',           // Root level - inconsistent!
+    to: 'new_status',              // Root level - inconsistent!
+    trigger: 'automatic',          // Root level - inconsistent!
+    details: {
+        user: 'system'
+    }
+}, correlationId);
+```
+
+**✅ CORRECT - All data in details:**
+
+```javascript
+addAuditEntry(recordId, {
+    type: 'status_change',
+    details: {
+        from: 'old_status',
+        to: 'new_status',
+        trigger: 'automatic',
+        reason: 'Record reached target status',
+        user: 'system'
+    }
+}, correlationId);
+```
+
+## Standard Audit Entry Format
+
+```javascript
+{
+    type: 'event_type',        // Required: Event type identifier
+    timestamp: 'ISO-8601',     // Added automatically by addAuditEntry()
+    correlationId: 'uuid',     // Added automatically by addAuditEntry()
+    details: {                 // Required: All event-specific data goes here
+        // Common fields
+        user: 'User Name',          // User who triggered the action
+        user_id: '12345',           // User internal ID
+        trigger: 'manual|automatic|system',  // How event was triggered
+        reason: 'Descriptive reason',        // Why event occurred
+        
+        // Event-specific fields
+        // (varies by event type - all go in details!)
+    }
+}
+```
+
+## Common Audit Entry Types
+
+Define audit entry types based on your project's needs. Common patterns include:
+
+- **record_created**: New record creation with source, user, and initial data
+- **status_change**: Status transitions with from/to/trigger/reason
+- **record_linked**: Linking records with link details
+- **record_unlinked**: Unlinking records with link details
+- **operation_triggered**: Long-running operation started (manual or batch)
+- **operation_completed**: Successful operation completion
+- **operation_failed**: Failed operation with error details
+- **data_updated**: External API updates with fields_changed array
+- **validation_error**: Validation failures with field details
+- **approval_change**: Approval workflow changes
+
+## Key Principle
+
+**All variable data goes in `details`** - only `type`, `timestamp`, and `correlationId` at root level. This ensures:
+- Predictable structure for frontend parsing
+- Easy TypeScript typing
+- Consistent handling across all event types
+- Simplified querying and filtering
+
+## Example Audit Entries
+
+### Status Change
+
+```javascript
+utils.addAuditEntry(recordId, {
+    type: 'status_change',
+    details: {
+        from: 'pending',
+        to: 'approved',
+        trigger: 'automatic',
+        reason: 'All validation checks passed',
+        user: triggeredBy,
+        user_id: triggeredById
+    }
+}, correlationId);
+```
+
+### Record Linked
+
+```javascript
+utils.addAuditEntry(recordId, {
+    type: 'record_linked',
+    details: {
+        linked_record_id: linkedId,
+        linked_record_type: recordType,
+        link_type: linkType,
+        user: triggeredBy,
+        user_id: triggeredById,
+        mode: 'async'
+    }
+}, correlationId);
+```
+
+### Data Updated from External API
+
+```javascript
+utils.addAuditEntry(recordId, {
+    type: 'data_updated',
+    details: {
+        fields_changed: [
+            { field: 'status', from: 'active', to: 'completed' },
+            { field: 'amount', from: 100, to: 150 }
+        ],
+        source: 'external_api',
+        api_response_id: responseId
+    }
+}, correlationId);
+```
+
+### Operation Failed
+
+```javascript
+utils.addAuditEntry(recordId, {
+    type: 'operation_failed',
+    details: {
+        operation_type: 'data_import',
+        step_failed: 'validation',
+        error_message: error.message,
+        error_code: 'VALIDATION_ERROR',
+        user: triggeredBy,
+        user_id: triggeredById
+    }
+}, correlationId);
+```
+
+## Implementation Pattern
+
+### Adding Audit Entries
+
+```javascript
+/**
+ * Add an audit entry to a record's audit history
+ * @param {number} recordId - Record internal ID
+ * @param {Object} entry - Audit entry with type and details
+ * @param {string} correlationId - Correlation ID for tracking
+ */
+function addAuditEntry(recordId, entry, correlationId) {
+    try {
+        const rec = record.load({
+            type: 'customrecord_{PREFIX}_main',
+            id: recordId
+        });
+        
+        // Get existing audit history
+        const auditHistoryJson = rec.getValue('custrecord_{PREFIX}_audit_history');
+        const auditHistory = auditHistoryJson ? JSON.parse(auditHistoryJson) : [];
+        
+        // Add new entry with auto-generated fields
+        auditHistory.push({
+            ...entry,
+            timestamp: new Date().toISOString(),
+            correlationId: correlationId
+        });
+        
+        // Save updated history
+        rec.setValue('custrecord_{PREFIX}_audit_history', JSON.stringify(auditHistory));
+        rec.save();
+        
+        log.debug('Audit entry added', {
+            recordId: recordId,
+            type: entry.type,
+            correlationId: correlationId
+        });
+        
+    } catch (error) {
+        log.error('Failed to add audit entry', {
+            recordId: recordId,
+            entry: entry,
+            correlationId: correlationId,
+            error: error.message
+        });
+        // Don't throw - audit failures shouldn't stop the main operation
+    }
+}
+```
+
+### Querying Audit History
+
+```javascript
+/**
+ * Get audit history for a record
+ * @param {number} recordId - Record internal ID
+ * @param {Object} filters - Optional filters (type, dateFrom, dateTo)
+ * @returns {Array} Filtered audit entries
+ */
+function getAuditHistory(recordId, filters) {
+    const sql = `
+        SELECT custrecord_{PREFIX}_audit_history as audithistory
+        FROM customrecord_{PREFIX}_main
+        WHERE id = ${recordId}
+    `;
+    
+    const result = query.runSuiteQL({query: sql}).asMappedResults();
+    
+    if (!result || result.length === 0 || !result[0].audithistory) {
+        return [];
+    }
+    
+    let auditHistory = JSON.parse(result[0].audithistory);
+    
+    // Apply filters
+    if (filters) {
+        if (filters.type) {
+            auditHistory = auditHistory.filter(e => e.type === filters.type);
+        }
+        if (filters.dateFrom) {
+            auditHistory = auditHistory.filter(e => e.timestamp >= filters.dateFrom);
+        }
+        if (filters.dateTo) {
+            auditHistory = auditHistory.filter(e => e.timestamp <= filters.dateTo);
+        }
+    }
+    
+    return auditHistory;
+}
+```
+
+## Best Practices
+
+1. **Use CLOBTEXT field type** for audit history to handle large JSON
+2. **Use record.load/save** not submitFields for CLOBTEXT updates
+3. **Don't throw on audit failures** - audit is secondary to main operation
+4. **Include correlationId** for end-to-end tracing
+5. **Keep entries immutable** - never modify existing entries
+6. **Consider retention policy** - archive old entries if needed

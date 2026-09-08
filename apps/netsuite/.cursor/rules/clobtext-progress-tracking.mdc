@@ -1,0 +1,194 @@
+---
+title: CLOBTEXT Fields and Progress Tracking Patterns
+description: Critical patterns for handling CLOBTEXT fields and implementing progress tracking in NetSuite
+tags: [netsuite, suitescript, clobtext, progress-tracking, scheduled-scripts]
+lastUpdated: "2025-12-06"
+---
+
+# CLOBTEXT Fields and Progress Tracking
+
+## Critical: CLOBTEXT Fields Require record.load() + record.save()
+
+When updating CLOBTEXT fields (especially with large JSON data), `record.submitFields()` often fails silently:
+- **The operation appears successful** but data doesn't persist
+- **No error is thrown** making it difficult to debug
+- **Race conditions occur** when processes detect their own failed writes
+
+**Always use record.load() + record.save() for CLOBTEXT fields:**
+
+```javascript
+// ❌ WRONG - Will fail silently with large CLOBTEXT data
+record.submitFields({
+    type: 'customrecord_{PREFIX}_operation_progress',
+    id: progressRecordId,
+    values: {
+        'custrecord_{PREFIX}op_progress_data': JSON.stringify(largeProgressData)
+    }
+});
+
+// ✅ CORRECT - Use record.load() + record.save()
+const progressRecord = record.load({
+    type: 'customrecord_{PREFIX}_operation_progress',
+    id: progressRecordId
+});
+progressRecord.setValue('custrecord_{PREFIX}op_progress_data', JSON.stringify(largeProgressData));
+progressRecord.save();
+```
+
+**Note:** All long-running operations should use a unified `customrecord_{PREFIX}_operation_progress` record for tracking. See `long-running-operations.mdc` for the complete pattern.
+
+## Progress Tracking Pattern: Separate Concerns
+
+Don't use progress tracking fields for concurrency control - this creates race conditions where processes detect their own progress data as conflicts.
+
+**❌ WRONG - Using progress field for both tracking and locking:**
+
+```javascript
+function processTask(taskId) {
+    // Step 1: Write initial progress
+    updateProgress(taskId, {step: 1, message: "Starting..."});
+    
+    // Step 2: Check for existing process (RACE CONDITION!)
+    if (isTaskBeingProcessed(taskId)) {
+        // This will find the progress we just wrote!
+        throw new Error('Task already processing');
+    }
+    
+    // Continue processing...
+}
+```
+
+**✅ CORRECT - Simple overwrite pattern:**
+
+```javascript
+function processTask(taskId, correlationId, currentUser) {
+    // Initialize progress immediately - just overwrite any existing data
+    const initialProgress = {
+        startTime: new Date().toISOString(),
+        correlationId: correlationId,
+        triggeredBy: currentUser.name,
+        currentStep: 0,
+        totalSteps: 4,
+        steps: [],
+        errors: []
+    };
+    
+    // Set initial progress (overwrites any stale data)
+    const taskRecord = record.load({type: 'customrecord_task', id: taskId});
+    taskRecord.setValue('custrecord_progress', JSON.stringify(initialProgress));
+    taskRecord.save();
+    
+    // Process steps and update progress as you go
+    const progressSteps = [];
+    
+    // Step 1
+    progressSteps.push({step: 1, message: "Loading data", completed: false});
+    updateProgress(taskId, progressSteps, correlationId, currentUser, startTime);
+    
+    // Do the work...
+    
+    progressSteps[0].completed = true;
+    updateProgress(taskId, progressSteps, correlationId, currentUser, startTime);
+    
+    // Continue with remaining steps...
+}
+
+function updateProgress(taskId, progressSteps, correlationId, currentUser, startTime) {
+    try {
+        const progressData = {
+            startTime: startTime,
+            lastUpdate: new Date().toISOString(),
+            correlationId: correlationId,
+            triggeredBy: currentUser.name,
+            currentStep: progressSteps.filter(s => s.completed).length,
+            totalSteps: progressSteps.length,
+            steps: progressSteps
+        };
+        
+        const taskRecord = record.load({type: 'customrecord_task', id: taskId});
+        taskRecord.setValue('custrecord_progress', JSON.stringify(progressData));
+        taskRecord.save();
+    } catch (error) {
+        log.error('Failed to update progress', {error: error.message});
+        // Don't throw - progress update failure shouldn't stop the actual work
+    }
+}
+```
+
+## Key Principles for Progress Tracking
+
+1. **Overwrite, Don't Lock**: Start processing immediately and overwrite any existing progress data
+2. **Progress is for Tracking Only**: Don't use progress fields for concurrency control
+3. **Use record.load/save for CLOBTEXT**: Never use submitFields() for large JSON data
+4. **Non-Blocking Updates**: Progress update failures shouldn't stop the actual work
+5. **Keep Progress on Completion**: Mark with status ('completed'/'failed') instead of clearing
+6. **Stale Data Cleanup**: Only clean up in-progress records (>30 min, no status set)
+
+## Stale Progress Cleanup Pattern
+
+Use SuiteQL with .asMappedResults() for efficient cleanup:
+
+```javascript
+function cleanupStaleProcesses(correlationId) {
+    const staleQuery = `
+        SELECT 
+            id,
+            custrecord_progress as progressdata
+        FROM customrecord_task 
+        WHERE custrecord_progress IS NOT NULL
+          AND custrecord_progress != ''
+          AND isinactive = 'F'
+    `;
+    
+    const staleResults = query.runSuiteQL({query: staleQuery}).asMappedResults();
+    
+    for (let i = 0; i < staleResults.length; i++) {
+        const result = staleResults[i];
+        try {
+            const progress = JSON.parse(result.progressdata);
+            const minutesElapsed = (new Date() - new Date(progress.startTime)) / (1000 * 60);
+            
+            // Only clean up stale in-progress records (not completed/failed)
+            if (minutesElapsed > 30 && !progress.status) {
+                // Clean up stale progress
+                const taskRecord = record.load({type: 'customrecord_task', id: result.id});
+                taskRecord.setValue('custrecord_progress', '');
+                taskRecord.save();
+            }
+        } catch (e) {
+            // Invalid JSON - clean it up
+            const taskRecord = record.load({type: 'customrecord_task', id: result.id});
+            taskRecord.setValue('custrecord_progress', '');
+            taskRecord.save();
+        }
+    }
+}
+```
+
+## Common Pitfalls to Avoid
+
+1. **Don't use submitFields() for CLOBTEXT** - It fails silently with large data
+2. **Don't check for existing progress before starting** - Creates race conditions
+3. **Don't use progress field for locking** - Separate concerns (tracking vs concurrency)
+4. **Don't fail the task if progress update fails** - Progress is secondary to actual work
+5. **Don't clear progress on completion** - Mark with status instead for visibility
+6. **Don't show toasts from Pinia stores** - Use component watchers to avoid context issues
+
+## Performance Considerations
+
+### Governance Management in Scheduled Scripts
+
+```javascript
+const scriptObj = runtime.getCurrentScript();
+const remainingUsage = scriptObj.getRemainingUsage();
+if (remainingUsage < 100) {
+    log.audit('Governance Limit Approaching', {remainingUsage});
+    break; // Exit processing loop
+}
+```
+
+### SuiteQL Query Optimization
+- Use specific field selection instead of SELECT *
+- Add appropriate WHERE clauses to limit results
+- Use TOP when appropriate
+- Consider governance limits in scheduled scripts

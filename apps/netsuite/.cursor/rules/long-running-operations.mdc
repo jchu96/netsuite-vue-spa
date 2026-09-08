@@ -1,0 +1,472 @@
+---
+title: Long-Running Operations Pattern
+description: Unified pattern for multi-step scheduled scripts with progress tracking and frontend polling
+tags: [netsuite, scheduled-scripts, progress-tracking, async-operations]
+lastUpdated: "2025-12-06"
+---
+
+# Long-Running Operations & Progress Tracking Pattern
+
+## Template Variables
+
+When implementing this pattern, replace the following placeholders:
+- `{PREFIX}` - Your project's 2-4 letter prefix (e.g., `dp`, `ob`, `inv`)
+- `{OPERATION_NAME}` - The specific operation name (e.g., `transaction_link`, `data_import`)
+- `{OP_ABBREV}` - Abbreviated operation name for parameters (e.g., `tl`, `di`)
+
+## Architecture Overview
+
+For operations that take >5 seconds or require multiple steps, use this unified pattern:
+
+1. **Centralized Progress Record** - `customrecord_{PREFIX}_operation_progress`
+2. **Backend Step Definitions** - Centralized in `{PREFIX}_operation_steps.js`
+3. **Scheduled Scripts** - Long-running operations run as scheduled scripts (not RESTlets)
+4. **Frontend Polling** - UI polls for progress every 2 seconds
+5. **Stepper Component** - PrimeVue Stepper for horizontal step visualization
+
+## Backend: Custom Record Definition
+
+**`customrecord_{PREFIX}_operation_progress.xml`** - Unified record for all long-running operations:
+
+**Key Fields:**
+- `custrecord_{PREFIX}op_parent_record` - Reference to parent record (project, entity, etc.)
+- `custrecord_{PREFIX}op_operation_type` - Operation type identifier
+- `custrecord_{PREFIX}op_status` - null (in-progress), 'completed', 'failed'
+- `custrecord_{PREFIX}op_progress_data` - CLOBTEXT JSON with steps array
+- `custrecord_{PREFIX}op_context_data` - Operation-specific context
+- `custrecord_{PREFIX}op_correlation_id` - For log tracing
+- `custrecord_{PREFIX}op_start_time`, `custrecord_{PREFIX}op_last_update`, `custrecord_{PREFIX}op_completed_at`
+
+## Backend: Centralized Step Definitions
+
+**`{PREFIX}_operation_steps.js`** - Single source of truth for all operation steps:
+
+```javascript
+/**
+ * @NApiVersion 2.1
+ * @NModuleScope SameAccount
+ */
+define([], function() {
+    
+    // Define your operation types and their steps here
+    // Each operation type maps to an array of step definitions
+    const OPERATION_STEPS = {
+        // Example: Data import operation
+        'data_import': [
+            { id: 'validate', step: 1, message: 'Validating input data' },
+            { id: 'process', step: 2, message: 'Processing records' },
+            { id: 'finalize', step: 3, message: 'Finalizing import' }
+        ],
+        // Example: Record sync operation
+        'record_sync': [
+            { id: 'fetch', step: 1, message: 'Fetching external data' },
+            { id: 'compare', step: 2, message: 'Comparing with existing records' },
+            { id: 'update', step: 3, message: 'Updating records' },
+            { id: 'cleanup', step: 4, message: 'Cleaning up temporary data' }
+        ]
+        // Add your operation types here...
+    };
+    
+    function getStepsForOperation(operationType) {
+        return OPERATION_STEPS[operationType] || [];
+    }
+    
+    function initializeSteps(operationType) {
+        const stepDefinitions = getStepsForOperation(operationType);
+        
+        return stepDefinitions.map(function(def, index) {
+            return {
+                id: def.id,
+                step: index + 1,
+                message: def.message,
+                completed: false,
+                timestamp: new Date().toISOString()
+            };
+        });
+    }
+    
+    return {
+        OPERATION_STEPS: OPERATION_STEPS,
+        getStepsForOperation: getStepsForOperation,
+        initializeSteps: initializeSteps
+    };
+});
+```
+
+**Why Backend as Source of Truth?**
+- ✅ Single place to add/remove/reorder steps
+- ✅ Frontend automatically adapts to step changes
+- ✅ No risk of frontend/backend step mismatch
+- ✅ Step definitions returned in progress API response
+
+## Backend: Scheduled Script Pattern
+
+**Script Structure:**
+
+```javascript
+define(['N/log', 'N/record', 'N/query', 'N/runtime', './lib/{PREFIX}_operation_steps'], 
+function(log, record, query, runtime, opSteps) {
+    
+    function execute(context) {
+        const scriptParams = getScriptParameters();
+        const correlationId = scriptParams.correlationId;
+        
+        // Create operation progress record immediately
+        const progressRecordId = createOperationProgress({
+            parentRecordId: scriptParams.parentRecordId,
+            operationType: scriptParams.operationType,
+            correlationId: correlationId,
+            triggeredBy: scriptParams.triggeredBy,
+            triggeredById: scriptParams.triggeredById,
+            startTime: new Date().toISOString(),
+            steps: opSteps.initializeSteps(scriptParams.operationType)
+        });
+        
+        const progressSteps = opSteps.initializeSteps(scriptParams.operationType);
+        const errors = [];
+        
+        try {
+            // Execute each step with progress updates
+            for (let i = 0; i < progressSteps.length; i++) {
+                try {
+                    // Execute step logic
+                    executeStep(progressSteps[i], scriptParams);
+                    
+                    // Mark step as completed
+                    progressSteps[i].completed = true;
+                    progressSteps[i].completedTimestamp = new Date().toISOString();
+                    updateOperationProgress(progressRecordId, progressSteps, errors);
+                    
+                } catch (stepError) {
+                    errors.push(`Step ${i + 1} failed: ${stepError.message}`);
+                    progressSteps[i].error = stepError.message;
+                    progressSteps[i].completedTimestamp = new Date().toISOString();
+                    updateOperationProgress(progressRecordId, progressSteps, errors);
+                    throw stepError;
+                }
+            }
+            
+            // Mark operation as completed
+            completeOperationProgress(progressRecordId, progressSteps, errors, 'completed');
+            
+        } catch (error) {
+            log.error('Operation failed', { 
+                error: error.message, 
+                correlationId: correlationId 
+            });
+            
+            // Mark operation as failed
+            completeOperationProgress(progressRecordId, progressSteps, errors, 'failed', error.message);
+            
+            // Rollback if needed
+            rollbackOperation(scriptParams);
+        }
+    }
+    
+    return { execute: execute };
+});
+```
+
+**Critical Patterns:**
+1. **Create progress record FIRST** - Before any operation logic
+2. **Use record.load + record.save for CLOBTEXT** - submitFields() fails silently with large JSON
+3. **Don't throw on progress update failure** - Progress is secondary to actual work
+4. **Mark status on completion** - Set `status: 'completed'` or `'failed'`
+5. **Rollback on error** - Delete created records, revert changes
+
+## Backend: RESTlet API Endpoints
+
+**Three endpoints needed:**
+
+### 1. Trigger Operation (Queues Scheduled Script)
+
+```javascript
+function triggerOperation(params, correlationId, currentUser) {
+    // Check for existing in-progress operation
+    const existingOpQuery = `
+        SELECT id, custrecord_{PREFIX}op_operation_type as optype
+        FROM customrecord_{PREFIX}_operation_progress
+        WHERE custrecord_{PREFIX}op_parent_record = ${params.parentRecordId}
+          AND custrecord_{PREFIX}op_status IS NULL
+          AND isinactive = 'F'
+    `;
+    const existingOp = query.runSuiteQL({query: existingOpQuery}).asMappedResults();
+    
+    if (existingOp.length > 0) {
+        return {
+            success: false,
+            error: {
+                code: 'OPERATION_IN_PROGRESS',
+                message: `Another operation (${existingOp[0].optype}) is in progress`
+            }
+        };
+    }
+    
+    // Queue scheduled script
+    const scheduledTask = task.create({
+        taskType: task.TaskType.SCHEDULED_SCRIPT,
+        scriptId: 'customscript_{PREFIX}_{OPERATION_NAME}',
+        deploymentId: 'customdeploy_{PREFIX}_{OP_ABBREV}',
+        params: {
+            custscript_{PREFIX}_{OP_ABBREV}_parent_id: params.parentRecordId,
+            custscript_{PREFIX}_{OP_ABBREV}_operation_type: params.operationType,
+            custscript_{PREFIX}_{OP_ABBREV}_correlation_id: correlationId,
+            custscript_{PREFIX}_{OP_ABBREV}_triggered_by: currentUser.name,
+            custscript_{PREFIX}_{OP_ABBREV}_triggered_by_id: currentUser.id
+            // Add operation-specific parameters as needed
+        }
+    });
+    
+    const taskId = scheduledTask.submit();
+    
+    return {
+        success: true,
+        data: {
+            taskId: taskId.toString(),
+            correlationId: correlationId
+        }
+    };
+}
+```
+
+### 2. Get Operation Progress (For Polling)
+
+```javascript
+function getOperationProgress(params, correlationId) {
+    // Build query with optional operation type filter
+    let progressQuery = `
+        SELECT TOP 1
+            id,
+            custrecord_{PREFIX}op_operation_type as operationtype,
+            custrecord_{PREFIX}op_status as status,
+            custrecord_{PREFIX}op_progress_data as progressdata
+        FROM customrecord_{PREFIX}_operation_progress
+        WHERE custrecord_{PREFIX}op_parent_record = ${params.parentRecordId}
+          AND isinactive = 'F'
+    `;
+    
+    if (params.operationType) {
+        progressQuery += ` AND custrecord_{PREFIX}op_operation_type = '${params.operationType}'`;
+    }
+    
+    progressQuery += ` ORDER BY custrecord_{PREFIX}op_start_time DESC`;
+    
+    const result = query.runSuiteQL({query: progressQuery}).asMappedResults();
+    
+    if (!result || result.length === 0) {
+        return {
+            success: true,
+            data: { hasProgress: false }
+        };
+    }
+    
+    const progressData = JSON.parse(result[0].progressdata);
+    
+    return {
+        success: true,
+        data: {
+            hasProgress: true,
+            ...progressData
+        }
+    };
+}
+```
+
+## Helper Functions
+
+### Create Operation Progress
+
+```javascript
+function createOperationProgress(params) {
+    const progressRecord = record.create({
+        type: 'customrecord_{PREFIX}_operation_progress'
+    });
+    
+    progressRecord.setValue('custrecord_{PREFIX}op_parent_record', params.parentRecordId);
+    progressRecord.setValue('custrecord_{PREFIX}op_operation_type', params.operationType);
+    progressRecord.setValue('custrecord_{PREFIX}op_correlation_id', params.correlationId);
+    progressRecord.setValue('custrecord_{PREFIX}op_triggered_by', params.triggeredBy);
+    progressRecord.setValue('custrecord_{PREFIX}op_triggered_by_id', params.triggeredById);
+    progressRecord.setValue('custrecord_{PREFIX}op_start_time', new Date(params.startTime));
+    progressRecord.setValue('custrecord_{PREFIX}op_last_update', new Date());
+    progressRecord.setValue('custrecord_{PREFIX}op_current_step', 0);
+    progressRecord.setValue('custrecord_{PREFIX}op_total_steps', params.steps.length);
+    
+    const progressData = {
+        operationType: params.operationType,
+        startTime: params.startTime,
+        lastUpdate: new Date().toISOString(),
+        correlationId: params.correlationId,
+        triggeredBy: params.triggeredBy,
+        triggeredById: params.triggeredById,
+        currentStep: 0,
+        totalSteps: params.steps.length,
+        steps: params.steps,
+        errors: []
+    };
+    
+    progressRecord.setValue('custrecord_{PREFIX}op_progress_data', JSON.stringify(progressData));
+    
+    if (params.contextData) {
+        progressRecord.setValue('custrecord_{PREFIX}op_context_data', JSON.stringify(params.contextData));
+    }
+    
+    return progressRecord.save();
+}
+```
+
+### Update Operation Progress
+
+```javascript
+function updateOperationProgress(progressRecordId, progressSteps, errors) {
+    try {
+        // CRITICAL: Use record.load + record.save for CLOBTEXT
+        const progressRecord = record.load({
+            type: 'customrecord_{PREFIX}_operation_progress',
+            id: progressRecordId
+        });
+        
+        const currentStep = progressSteps.filter(function(s) { return s.completed; }).length;
+        
+        progressRecord.setValue('custrecord_{PREFIX}op_current_step', currentStep);
+        progressRecord.setValue('custrecord_{PREFIX}op_last_update', new Date());
+        
+        // Get existing progress data to preserve metadata
+        const existingProgressData = JSON.parse(
+            progressRecord.getValue('custrecord_{PREFIX}op_progress_data')
+        );
+        
+        existingProgressData.currentStep = currentStep;
+        existingProgressData.lastUpdate = new Date().toISOString();
+        existingProgressData.steps = progressSteps;
+        existingProgressData.errors = errors;
+        
+        progressRecord.setValue('custrecord_{PREFIX}op_progress_data', 
+            JSON.stringify(existingProgressData));
+        progressRecord.save();
+        
+    } catch (error) {
+        log.error('Failed to update operation progress', {
+            progressRecordId: progressRecordId,
+            error: error.message
+        });
+        // Don't throw - progress update failure shouldn't stop the operation
+    }
+}
+```
+
+### Complete Operation Progress
+
+```javascript
+function completeOperationProgress(progressRecordId, progressSteps, errors, status, finalError) {
+    try {
+        const progressRecord = record.load({
+            type: 'customrecord_{PREFIX}_operation_progress',
+            id: progressRecordId
+        });
+        
+        const currentStep = progressSteps.filter(function(s) { return s.completed; }).length;
+        const completedAt = new Date();
+        
+        progressRecord.setValue('custrecord_{PREFIX}op_status', status);
+        progressRecord.setValue('custrecord_{PREFIX}op_current_step', currentStep);
+        progressRecord.setValue('custrecord_{PREFIX}op_last_update', completedAt);
+        progressRecord.setValue('custrecord_{PREFIX}op_completed_at', completedAt);
+        
+        if (finalError) {
+            progressRecord.setValue('custrecord_{PREFIX}op_final_error', finalError);
+        }
+        
+        // Update progress data
+        const existingProgressData = JSON.parse(
+            progressRecord.getValue('custrecord_{PREFIX}op_progress_data')
+        );
+        
+        existingProgressData.status = status;
+        existingProgressData.currentStep = currentStep;
+        existingProgressData.lastUpdate = completedAt.toISOString();
+        existingProgressData.completedAt = completedAt.toISOString();
+        existingProgressData.steps = progressSteps;
+        existingProgressData.errors = errors;
+        
+        if (finalError) {
+            existingProgressData.finalError = finalError;
+        }
+        
+        progressRecord.setValue('custrecord_{PREFIX}op_progress_data', 
+            JSON.stringify(existingProgressData));
+        progressRecord.save();
+        
+    } catch (error) {
+        log.error('Failed to complete operation progress', {
+            progressRecordId: progressRecordId,
+            error: error.message
+        });
+    }
+}
+```
+
+## Implementation Checklist
+
+When implementing this pattern for a new project:
+
+### 1. Define Your Prefix
+- Choose a 2-4 letter prefix (e.g., `ob` for OrderBuilder, `inv` for Inventory)
+- Use consistently across all records, scripts, and fields
+
+### 2. Create Custom Record
+- Deploy `customrecord_{PREFIX}_operation_progress` with all required fields
+- Replace `{PREFIX}op` with your actual prefix (e.g., `obop`, `invop`)
+
+### 3. Define Operation Steps
+- Create `{PREFIX}_operation_steps.js` with your operation types
+- Each operation type should have 3-8 discrete steps
+
+### 4. Implement Scheduled Scripts
+- One script per major operation type, or one generic script
+- Follow the execute pattern with step iteration
+
+### 5. Create RESTlet Endpoints
+- Trigger endpoint to queue operations
+- Progress endpoint for frontend polling
+
+## Key Benefits of This Pattern
+
+1. **Unified Architecture** - Same pattern for all long-running operations
+2. **No Timeout Issues** - Scheduled scripts can run for minutes
+3. **Real-time Feedback** - User sees progress as it happens
+4. **Robust Error Handling** - Proper rollback and error reporting
+5. **Easy to Maintain** - Add/remove steps in one place
+6. **Audit Trail** - Full correlation ID tracing
+7. **Concurrent Operation Prevention** - Checks for in-progress operations
+
+## Common Pitfalls to Avoid
+
+1. **Don't use submitFields() for CLOBTEXT** - Will fail silently with large JSON
+2. **Don't use progress field for locking** - Separate concerns (tracking vs concurrency)
+3. **Don't throw on progress update failure** - Progress is secondary to actual work
+4. **Don't check currentStep === totalSteps before status** - Check status first!
+5. **Don't forget rollback on error** - Clean up created records
+6. **Don't skip correlation ID** - Essential for debugging
+
+## Example: Step Definitions Template
+
+```javascript
+// Example operation steps - customize for your project
+const OPERATION_STEPS = {
+    'example_import': [
+        { id: 'validate', step: 1, message: 'Validating input data and permissions' },
+        { id: 'fetch', step: 2, message: 'Fetching source records' },
+        { id: 'transform', step: 3, message: 'Transforming data format' },
+        { id: 'create', step: 4, message: 'Creating target records' },
+        { id: 'link', step: 5, message: 'Linking related records' },
+        { id: 'notify', step: 6, message: 'Sending completion notifications' }
+    ],
+    'example_sync': [
+        { id: 'connect', step: 1, message: 'Connecting to external system' },
+        { id: 'compare', step: 2, message: 'Comparing record sets' },
+        { id: 'update', step: 3, message: 'Updating changed records' },
+        { id: 'cleanup', step: 4, message: 'Cleaning up and finalizing' }
+    ]
+};
+```

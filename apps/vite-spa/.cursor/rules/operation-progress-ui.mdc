@@ -1,0 +1,164 @@
+---
+title: Operation Progress Modal UI Patterns
+description: Usage patterns for OperationProgressModal component and progress polling
+tags: [vue, ui, progress, operations, primevue]
+lastUpdated: "2025-11-12"
+---
+
+# Operation Progress Modal UI Patterns
+
+## Progress Modal Component Usage
+
+The `OperationProgressModal` component provides unified progress visualization for all long-running operations (link, unlink, finalization).
+
+### Basic Usage in Component
+
+```vue
+<template>
+  <!-- Transaction Linking Modal -->
+  <Dialog v-model:visible="showLinkModal">
+    <Button @click="onLink" :loading="isLinking">Link Transaction</Button>
+  </Dialog>
+
+  <!-- Progress Modal -->
+  <OperationProgressModal
+    v-model:visible="showProgressModal"
+    :progress="projectsStore.operationProgress"
+    @close="onProgressClose"
+    @success="onProgressSuccess"
+  />
+</template>
+
+<script setup lang="ts">
+const projectsStore = useProjectsStore()
+const showLinkModal = ref(false)
+const showProgressModal = ref(false)
+const isLinking = ref(false)
+
+const onLink = async () => {
+  isLinking.value = true
+  
+  try {
+    await projectsStore.triggerTransactionLink(projectId, txnId, txnType, role)
+    
+    // Hide link modal, show progress modal
+    showLinkModal.value = false
+    showProgressModal.value = true
+    
+    toast.add({ severity: 'info', summary: 'Operation Started' })
+  } catch (error) {
+    toast.add({ severity: 'error', summary: 'Failed to Start' })
+  } finally {
+    isLinking.value = false
+  }
+}
+
+const onProgressSuccess = () => {
+  showProgressModal.value = false
+  projectsStore.clearOperationProgress()
+  toast.add({ severity: 'success', summary: 'Completed' })
+}
+
+const onProgressClose = () => {
+  showProgressModal.value = false
+  projectsStore.clearOperationProgress()
+}
+</script>
+```
+
+## Progress Modal Features
+
+### PrimeVue Stepper (Horizontal Layout)
+- Progress bar showing overall completion percentage
+- Step-by-step visualization with state icons:
+  - ✓ Completed (green check circle)
+  - ⚠ Error (red times circle with error message)
+  - ⟳ In Progress (blue spinning icon)
+  - ○ Pending (gray circle)
+
+### Operation Metadata Display
+- Operation title (e.g., "Linking Transaction")
+- Triggered by user name
+- Correlation ID
+- Start time and duration
+
+### Modal Behavior
+- **Non-closable during operation** - `canClose` computed based on status
+- **Auto-close on success** - Via `@success` event
+- **Manual close on failure** - Via `@close` event
+- **Success Message** - Green success message when operation completes
+
+## Auto-Refresh After Operations
+
+```typescript
+watch(() => projectsStore.operationProgress?.status, async (newStatus, oldStatus) => {
+  const opType = projectsStore.operationProgress?.operationType
+  
+  if (newStatus === 'completed' && oldStatus !== 'completed') {
+    // Add 500ms delay to ensure backend has committed all changes
+    await new Promise(resolve => setTimeout(resolve, 500))
+    
+    // Refresh project and transactions
+    const response = await projectsStore.fetchProjectDetail(props.id)
+    if (opType === 'link' || opType === 'unlink') {
+      transactionsStore.setLinkedTransactions(response.linkedTransactions)
+    }
+    
+    toast.add({
+      severity: 'success',
+      summary: `${opType === 'link' ? 'Linking' : 'Unlinking'} Successful`,
+      detail: `Transaction has been ${opType === 'link' ? 'linked' : 'unlinked'} successfully.`,
+      life: 5000
+    })
+  }
+})
+```
+
+**Key Features:**
+- 500ms delay ensures backend database commits complete
+- Only refreshes for operations on current project
+- Handles all operation types (link, unlink, finalization)
+- Updates both project data and transactions list
+
+## Progress Percentage Calculation
+
+```typescript
+const progressPercentage = computed(() => {
+  if (!progress.value) return 0
+  return Math.round((progress.value.currentStep / progress.value.totalSteps) * 100)
+})
+```
+
+## Step State Detection
+
+```typescript
+const isStepActive = (step: any) => {
+  return step.step === progress.value.currentStep && !step.completed
+}
+
+const isStepCompleted = (step: any) => {
+  return step.completed && !step.error
+}
+
+const hasStepError = (step: any) => {
+  return !!step.error
+}
+```
+
+## Modal Closable Logic
+
+```typescript
+const canClose = computed(() => {
+  return progress.value?.status === 'completed' || progress.value?.status === 'failed'
+})
+```
+
+## Best Practices
+
+1. **Always show progress modal after triggering operation**
+2. **Hide triggering modal before showing progress modal**
+3. **Use watchers for completion toasts** - Not from store actions
+4. **Clear progress state after modal closes**
+5. **Add 500ms delay before refresh** - Ensures database commits complete
+6. **Handle both success and failure cases** - Different UX for each
+

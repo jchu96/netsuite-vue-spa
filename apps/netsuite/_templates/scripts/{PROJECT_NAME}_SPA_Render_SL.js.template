@@ -1,0 +1,261 @@
+/**
+ * TEMPLATE FILE - Do not deploy directly
+ * 
+ * Replace the following before use:
+ *   {PROJECT_NAME}        → full project name (e.g., DirectPay, OrderBuilder)
+ *   {PROJECT_NAME_DISPLAY} → human-readable name (e.g., Direct Pay, Order Builder)
+ *   {PROJECT_FOLDER}      → SuiteScripts folder name (e.g., com.example.myproject)
+ * 
+ * Rename this file to: {PROJECT_NAME}_SPA_Render_SL.js
+ */
+
+/**
+ * @NApiVersion 2.1
+ * @NScriptType Suitelet
+ * @NModuleScope SameAccount
+ */
+
+define(['N/ui/serverWidget', 'N/file', 'N/log', 'N/runtime'], function(ui, file, log, runtime) {
+    
+    /**
+     * {PROJECT_NAME} SPA Rendering Suitelet
+     * Serves the Vue/Vite SPA for {PROJECT_NAME_DISPLAY}
+     */
+    
+    /**
+     * Logs request details for debugging purposes
+     */
+    function logRequestDetails(context) {
+        try {
+            const requestInfo = {
+                method: context.request.method,
+                url: context.request.url,
+                headers: JSON.stringify(context.request.headers || {}),
+                parameters: JSON.stringify(context.request.parameters || {}),
+                userAgent: context.request.headers['user-agent'] || 'Unknown',
+                timestamp: new Date().toISOString()
+            };
+            
+            log.audit({
+                title: '{PROJECT_NAME} SPA Request Details',
+                details: JSON.stringify(requestInfo, null, 2)
+            });
+        } catch (e) {
+            log.error({
+                title: 'Error Logging Request Details',
+                details: e.message
+            });
+        }
+    }
+
+    /**
+     * Logs file loading attempt and success/failure
+     */
+    function logFileOperation(filePath, success, errorMessage, fileSize) {
+        const logData = {
+            filePath: filePath,
+            success: success,
+            timestamp: new Date().toISOString(),
+            fileSize: fileSize || 'Unknown'
+        };
+        
+        if (errorMessage) {
+            logData.error = errorMessage;
+        }
+        
+        if (success) {
+            log.audit({
+                title: '{PROJECT_NAME} SPA File Loaded Successfully',
+                details: JSON.stringify(logData, null, 2)
+            });
+        } else {
+            log.error({
+                title: '{PROJECT_NAME} SPA File Load Failed',
+                details: JSON.stringify(logData, null, 2)
+            });
+        }
+    }
+
+    /**
+     * Main request handler for {PROJECT_NAME} SPA
+     */
+    function onRequest(context) {
+        const startTime = Date.now();
+        
+        // Log script execution start
+        log.audit({
+            title: '{PROJECT_NAME} SPA - Script Started',
+            details: 'Script execution started at: ' + new Date().toISOString()
+        });
+        
+        // Log current user context
+        try {
+            const currentUser = runtime.getCurrentUser();
+            log.debug('{PROJECT_NAME} SPA Current User', {
+                id: currentUser.id,
+                name: currentUser.name,
+                email: currentUser.email,
+                role: currentUser.role
+            });
+        } catch (userError) {
+            log.error('Error getting current user', userError.message);
+        }
+        
+        // Log request details
+        logRequestDetails(context);
+        
+        // Validate request method
+        if (context.request.method !== 'GET') {
+            log.error({
+                title: '{PROJECT_NAME} SPA Invalid Method',
+                details: 'Expected GET request, received: ' + context.request.method
+            });
+            
+            context.response.write(JSON.stringify({
+                error: 'Method not allowed',
+                expected: 'GET',
+                received: context.request.method
+            }));
+            return;
+        }
+
+        try {
+            // Check for any URL parameters (future: deep linking support)
+            const recordId = context.request.parameters.recordId;
+            const page = context.request.parameters.page;
+            
+            log.debug({
+                title: '{PROJECT_NAME} SPA Request Parameters',
+                details: `Record ID: ${recordId || 'None'}, Page: ${page || 'Dashboard'}`
+            });
+
+            // Set file path for the built Vue SPA
+            // Update this path to match your project's app folder
+            const filePath = '/SuiteScripts/{PROJECT_FOLDER}/app/index.html';
+            
+            log.debug({
+                title: '{PROJECT_NAME} SPA File Path Set',
+                details: 'Attempting to load file: ' + filePath
+            });
+
+            try {
+                // Load the Vue SPA file
+                log.debug({
+                    title: '{PROJECT_NAME} SPA Loading File',
+                    details: 'Attempting to load file from: ' + filePath
+                });
+
+                const fileHTML = file.load({ id: filePath });
+                const fileContents = fileHTML.getContents();
+                const fileSize = fileContents.length;
+                
+                // Log successful file load
+                logFileOperation(filePath, true, null, fileSize);
+                
+                log.debug({
+                    title: '{PROJECT_NAME} SPA File Contents Retrieved',
+                    details: 'File size: ' + fileSize + ' characters'
+                });
+
+                // Write the raw HTML response (for SPA)
+                context.response.write(fileContents);
+
+                // Log successful response
+                const executionTime = Date.now() - startTime;
+                log.audit({
+                    title: '{PROJECT_NAME} SPA Request Completed Successfully',
+                    details: JSON.stringify({
+                        filePath: filePath,
+                        fileSize: fileSize,
+                        executionTime: executionTime + 'ms',
+                        recordId: recordId || 'None',
+                        page: page || 'Dashboard',
+                        timestamp: new Date().toISOString()
+                    }, null, 2)
+                });
+
+            } catch (fileError) {
+                // Log file loading error
+                logFileOperation(filePath, false, fileError.message);
+                
+                log.error({
+                    title: '{PROJECT_NAME} SPA File Load Error',
+                    details: JSON.stringify({
+                        filePath: filePath,
+                        errorName: fileError.name,
+                        errorMessage: fileError.message,
+                        errorStack: fileError.stack || 'Stack trace not available',
+                        timestamp: new Date().toISOString()
+                    }, null, 2)
+                });
+                
+                // Create fallback error page
+                const errorPageContent = [
+                    '<!DOCTYPE html>',
+                    '<html>',
+                    '<head><title>Error - {PROJECT_NAME_DISPLAY}</title></head>',
+                    '<body>',
+                    '<div style="padding: 20px; font-family: Arial, sans-serif;">',
+                    '<h2 style="color: #d32f2f;">Error Loading {PROJECT_NAME_DISPLAY}</h2>',
+                    '<div style="background: #f5f5f5; padding: 15px; border-radius: 4px; margin: 10px 0;">',
+                    '<strong>File Path:</strong> ' + filePath + '<br>',
+                    '<strong>Error:</strong> ' + fileError.message + '<br>',
+                    '<strong>Error Type:</strong> ' + (fileError.name || 'Unknown') + '<br>',
+                    '<strong>Timestamp:</strong> ' + new Date().toISOString(),
+                    '</div>',
+                    '<p style="color: #666;">Please ensure the {PROJECT_NAME_DISPLAY} SPA has been built and deployed to the File Cabinet.</p>',
+                    '<div style="background: #e3f2fd; padding: 15px; border-radius: 4px; margin: 10px 0;">',
+                    '<strong>Build Instructions:</strong><br>',
+                    '1. Navigate to the vite-spa directory<br>',
+                    '2. Run: npm run build<br>',
+                    '3. Run: npm run postbuild<br>',
+                    '4. Redeploy the SDF project',
+                    '</div>',
+                    '</div>',
+                    '</body>',
+                    '</html>'
+                ].join('');
+                
+                context.response.write(errorPageContent);
+                
+                // Log fallback page served
+                log.audit({
+                    title: '{PROJECT_NAME} SPA Fallback Page Served',
+                    details: 'Error page served due to file loading failure'
+                });
+            }
+
+        } catch (generalError) {
+            // Log general script error
+            log.error({
+                title: '{PROJECT_NAME} SPA General Script Error',
+                details: JSON.stringify({
+                    errorName: generalError.name,
+                    errorMessage: generalError.message,
+                    errorStack: generalError.stack || 'Stack trace not available',
+                    timestamp: new Date().toISOString(),
+                    executionTime: (Date.now() - startTime) + 'ms'
+                }, null, 2)
+            });
+            
+            // Send error response
+            try {
+                context.response.write(JSON.stringify({
+                    error: 'Internal server error',
+                    message: generalError.message,
+                    timestamp: new Date().toISOString()
+                }));
+            } catch (responseError) {
+                log.error({
+                    title: '{PROJECT_NAME} SPA Response Write Error',
+                    details: 'Failed to write error response: ' + responseError.message
+                });
+            }
+        }
+    }
+  
+    return {
+        onRequest: onRequest
+    };
+});
+

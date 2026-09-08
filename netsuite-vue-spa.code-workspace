@@ -1,0 +1,20 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+    {
+      "name": "SPA",
+			"path": "./apps/vite-spa"
+		},
+    {
+      "name": "NetSuite",
+			"path": "./apps/netsuite"
+		}
+	],
+    "settings": {
+      "files.exclude": {
+        "**/node_modules": true
+      }
+    }
+}

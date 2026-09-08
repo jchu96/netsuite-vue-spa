@@ -1,0 +1,279 @@
+---
+title: Date/Time Handling Patterns
+description: Standardized patterns for date manipulation using Luxon in Vue/TypeScript
+tags: [datetime, luxon, typescript, formatting]
+lastUpdated: "2025-12-06"
+---
+
+# Date/Time Handling Patterns
+
+## Use Luxon for All Date Operations
+
+**Always use Luxon** instead of native Date for consistency and timezone safety.
+
+```typescript
+import { DateTime } from 'luxon'
+```
+
+## Creating DateTime Objects
+
+```typescript
+// From current time
+const now = DateTime.now()
+const utcNow = DateTime.utc()
+
+// From ISO string (API responses)
+const dt = DateTime.fromISO('2025-01-15T10:30:00Z')
+
+// From JavaScript Date
+const dt = DateTime.fromJSDate(new Date())
+
+// From components
+const dt = DateTime.fromObject({ year: 2025, month: 1, day: 15 })
+
+// Specific timezone
+const dt = DateTime.now().setZone('America/New_York')
+```
+
+## Formatting Dates
+
+### Common Format Patterns
+
+```typescript
+const dt = DateTime.now()
+
+// Display formats
+dt.toFormat('yyyy-MM-dd')           // '2025-01-15'
+dt.toFormat('MM/dd/yyyy')           // '01/15/2025'
+dt.toFormat('MMM d, yyyy')          // 'Jan 15, 2025'
+dt.toFormat('MMMM d, yyyy')         // 'January 15, 2025'
+dt.toFormat('EEE, MMM d')           // 'Wed, Jan 15'
+dt.toFormat('h:mm a')               // '10:30 AM'
+dt.toFormat('HH:mm:ss')             // '10:30:00'
+dt.toFormat('yyyy-MM-dd HH:mm:ss')  // '2025-01-15 10:30:00'
+
+// ISO formats (for APIs)
+dt.toISO()                          // '2025-01-15T10:30:00.000-05:00'
+dt.toISODate()                      // '2025-01-15'
+```
+
+### Week-Based Formatting
+
+```typescript
+const dt = DateTime.now()
+
+// ISO week format (for buckets)
+const weekKey = `${dt.weekYear}-W${dt.weekNumber.toString().padStart(2, '0')}`
+// '2025-W03'
+
+// Week display label
+const weekLabel = `W${dt.weekNumber} ${dt.toFormat('MMM d')}`
+// 'W3 Jan 13'
+```
+
+### Month-Based Formatting
+
+```typescript
+const dt = DateTime.now()
+
+// Month key (for buckets)
+const monthKey = dt.toFormat('yyyy-MM')  // '2025-01'
+
+// Month display
+dt.toFormat('MMM yyyy')    // 'Jan 2025'
+dt.toFormat('MMMM yyyy')   // 'January 2025'
+```
+
+## Date Arithmetic
+
+```typescript
+const dt = DateTime.now()
+
+// Adding/Subtracting
+dt.plus({ days: 7 })
+dt.plus({ weeks: 1 })
+dt.plus({ months: 3 })
+dt.minus({ years: 1 })
+dt.minus({ hours: 2, minutes: 30 })
+
+// Start/End of period
+dt.startOf('week')     // Monday 00:00:00
+dt.startOf('month')    // 1st 00:00:00
+dt.startOf('day')      // 00:00:00
+dt.endOf('week')       // Sunday 23:59:59
+dt.endOf('month')      // Last day 23:59:59
+```
+
+## Week Bucket Generation
+
+```typescript
+/**
+ * Generate week buckets for a date range
+ */
+function generateWeekBuckets(
+  startWeeksAgo: number,
+  endWeeksAhead: number
+): TimeBucket[] {
+  const buckets: TimeBucket[] = []
+  const now = DateTime.now()
+  
+  for (let i = -startWeeksAgo; i <= endWeeksAhead; i++) {
+    const dt = now.plus({ weeks: i }).startOf('week')
+    
+    buckets.push({
+      key: `${dt.weekYear}-W${dt.weekNumber.toString().padStart(2, '0')}`,
+      label: `W${dt.weekNumber} ${dt.toFormat('MMM d')}`,
+      startDate: dt.toISODate()!,
+      endDate: dt.endOf('week').toISODate()!,
+    })
+  }
+  
+  return buckets
+}
+
+// Usage: 52 weeks back, 26 weeks forward
+const buckets = generateWeekBuckets(52, 26)
+```
+
+## Month Bucket Generation
+
+```typescript
+/**
+ * Generate month buckets for a date range
+ */
+function generateMonthBuckets(
+  startMonthsAgo: number,
+  endMonthsAhead: number
+): TimeBucket[] {
+  const buckets: TimeBucket[] = []
+  const now = DateTime.now()
+  
+  for (let i = -startMonthsAgo; i <= endMonthsAhead; i++) {
+    const dt = now.plus({ months: i }).startOf('month')
+    
+    buckets.push({
+      key: dt.toFormat('yyyy-MM'),
+      label: dt.toFormat('MMM yyyy'),
+      startDate: dt.toISODate()!,
+      endDate: dt.endOf('month').toISODate()!,
+    })
+  }
+  
+  return buckets
+}
+```
+
+## Comparing Dates
+
+```typescript
+const dt1 = DateTime.fromISO('2025-01-15')
+const dt2 = DateTime.fromISO('2025-01-20')
+
+// Comparison operators
+dt1 < dt2   // true
+dt1 > dt2   // false
+dt1.equals(dt2)  // false
+
+// Difference
+const diff = dt2.diff(dt1, ['days', 'hours'])
+diff.days    // 5
+diff.hours   // 120
+
+// Is within range
+const isInRange = dt1 >= rangeStart && dt1 <= rangeEnd
+```
+
+## Finding Current Period
+
+```typescript
+// Find current week bucket index
+const currentWeekKey = `${DateTime.now().weekYear}-W${DateTime.now().weekNumber.toString().padStart(2, '0')}`
+const todayIndex = buckets.findIndex(b => b.key === currentWeekKey)
+
+// Find current month bucket index
+const currentMonthKey = DateTime.now().toFormat('yyyy-MM')
+const todayIndex = buckets.findIndex(b => b.key === currentMonthKey)
+```
+
+## Timezone Handling
+
+```typescript
+// Convert to specific timezone
+const localTime = DateTime.now().setZone('America/Los_Angeles')
+
+// Convert UTC to local
+const utcTime = DateTime.fromISO('2025-01-15T10:00:00Z')
+const localTime = utcTime.toLocal()
+
+// Keep timezone when formatting
+const formatted = dt.toFormat('yyyy-MM-dd HH:mm ZZZZ')
+// '2025-01-15 10:00 Pacific Standard Time'
+```
+
+## Relative Time
+
+```typescript
+import { DateTime } from 'luxon'
+
+const dt = DateTime.fromISO('2025-01-10')
+
+// Relative to now
+dt.toRelative()  // '5 days ago'
+dt.toRelative({ unit: 'hours' })  // '120 hours ago'
+
+// Relative to another date
+dt.toRelative({ base: DateTime.fromISO('2025-01-12') })  // '2 days ago'
+```
+
+## Type Definitions
+
+```typescript
+// types/timeBucket.ts
+export interface TimeBucket {
+  key: string        // '2025-W03' or '2025-01'
+  label: string      // 'W3 Jan 13' or 'Jan 2025'
+  startDate: string  // ISO date string
+  endDate: string    // ISO date string
+}
+
+export type BucketPeriod = 'weekly' | 'monthly'
+```
+
+## Common Pitfalls
+
+### ❌ Don't Use Native Date for Formatting
+```typescript
+// ❌ WRONG - Inconsistent across locales
+new Date().toLocaleDateString()
+
+// ✅ CORRECT - Explicit format
+DateTime.now().toFormat('yyyy-MM-dd')
+```
+
+### ❌ Don't Mutate DateTime Objects
+```typescript
+// ❌ WRONG - DateTime is immutable, this doesn't work
+const dt = DateTime.now()
+dt.plus({ days: 1 })  // Returns NEW DateTime, doesn't modify dt
+
+// ✅ CORRECT - Assign the result
+const tomorrow = DateTime.now().plus({ days: 1 })
+```
+
+### ❌ Don't Ignore Timezones
+```typescript
+// ❌ WRONG - Ambiguous timezone
+DateTime.fromISO('2025-01-15')
+
+// ✅ CORRECT - Explicit timezone or UTC
+DateTime.fromISO('2025-01-15T00:00:00Z')  // UTC
+DateTime.fromISO('2025-01-15', { zone: 'America/New_York' })
+```
+
+## Best Practices
+
+1. **Use Luxon exclusively** - Don't mix with native Date
+2. **Store ISO strings** - In APIs and databases
+3. **Format at display time** - Keep raw dates until rendering
+4. **Be explicit about timezones** - Especially for APIs
+5. **Use weekYear for week buckets** - Not regular year (edge case at year boundaries)

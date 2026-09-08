@@ -1,0 +1,184 @@
+---
+title: Vue Component UI/UX Patterns
+description: Best practices for loading states, user feedback, and component interaction patterns
+tags: [vue, ui, ux, loading-states, typescript]
+lastUpdated: "2025-11-12"
+---
+
+# Vue Component UI/UX Patterns
+
+## Critical: Always Add Loading States to Action Buttons
+
+Any button that triggers an async action (API call, navigation, data operation) **must** have:
+1. **Loading state** - Visual spinner while processing
+2. **Disabled state** - Prevent multiple clicks/race conditions
+3. **Error handling** - User feedback on failure
+
+**❌ WRONG - No loading state:**
+
+```vue
+<Button 
+  label="Save" 
+  @click="onSave"
+/>
+
+<script setup>
+const onSave = async () => {
+  await api.save()  // No visual feedback!
+}
+</script>
+```
+
+**✅ CORRECT - With loading and disabled:**
+
+```vue
+<Button 
+  label="Save" 
+  @click="onSave"
+  :loading="isSaving"
+  :disabled="isSaving"
+/>
+
+<script setup>
+const isSaving = ref(false)
+
+const onSave = async () => {
+  if (isSaving.value) return  // Guard against double-clicks
+  
+  isSaving.value = true
+  try {
+    await api.save()
+    toast.add({ severity: 'success', summary: 'Saved' })
+  } catch (error) {
+    toast.add({ severity: 'error', summary: 'Save Failed' })
+  } finally {
+    isSaving.value = false  // Always reset
+  }
+}
+</script>
+```
+
+## Loading State Patterns
+
+### Single Button
+
+```typescript
+const isProcessing = ref(false)
+
+<Button 
+  :loading="isProcessing"
+  :disabled="isProcessing"
+/>
+```
+
+### Multiple Buttons (Same Action Type)
+
+```typescript
+const processingId = ref<string | null>(null)
+
+<Button 
+  v-for="item in items"
+  :loading="processingId === item.id"
+  :disabled="processingId !== null"
+  @click="onProcess(item.id)"
+/>
+
+const onProcess = async (id: string) => {
+  processingId.value = id
+  try {
+    await api.process(id)
+  } finally {
+    processingId.value = null
+  }
+}
+```
+
+### Multiple Independent Actions
+
+```typescript
+const isSaving = ref(false)
+const isDeleting = ref(false)
+
+<Button label="Save" :loading="isSaving" :disabled="isSaving || isDeleting" />
+<Button label="Delete" :loading="isDeleting" :disabled="isSaving || isDeleting" />
+```
+
+## Destructive Actions - Add Confirmation
+
+For delete, unlink, cancel, or other destructive operations:
+
+```typescript
+const onDelete = async (id: string) => {
+  confirm.require({
+    message: 'Are you sure? This action cannot be undone.',
+    header: 'Confirm Delete',
+    icon: 'pi pi-exclamation-triangle',
+    rejectProps: {
+      label: 'Cancel',
+      severity: 'secondary',
+      outlined: true
+    },
+    acceptProps: {
+      label: 'Delete',
+      severity: 'danger'
+    },
+    accept: async () => {
+      isDeletingId.value = id
+      try {
+        await api.delete(id)
+        toast.add({ severity: 'success', summary: 'Deleted' })
+      } catch (error) {
+        toast.add({ severity: 'error', summary: 'Delete Failed' })
+      } finally {
+        isDeletingId.value = null
+      }
+    }
+  })
+}
+```
+
+## Best Practices
+
+1. **Always use finally block** - Ensures loading state resets even on error
+2. **Guard against double-clicks** - Check loading state at function start
+3. **Disable other buttons** - Prevent conflicting actions during processing
+4. **Provide feedback** - Toast on success and error
+5. **Optimistic updates** - Update UI immediately, rollback on error if needed
+
+## Component Watchers for Progress
+
+**✅ CORRECT - Component-level toast notifications:**
+
+```typescript
+// In component (ProjectDetailPage.vue)
+watch(() => projectsStore.operationProgress?.status, (newStatus, oldStatus) => {
+  if (newStatus === 'completed' && oldStatus !== 'completed') {
+    toast.add({
+      severity: 'success',
+      summary: 'Operation Successful',
+      detail: 'Transaction has been linked successfully.',
+      life: 5000
+    })
+    
+    // Refresh project data
+    projectsStore.fetchProjectDetail(props.id)
+  }
+  
+  if (newStatus === 'failed' && oldStatus !== 'failed') {
+    toast.add({
+      severity: 'error',
+      summary: 'Operation Failed',
+      detail: projectsStore.operationProgress?.finalError || 'An error occurred',
+      life: 7000
+    })
+  }
+})
+```
+
+**❌ WRONG - Showing toasts from Pinia store actions:**
+- Toast context may not be available in store
+- Causes issues with modal dialogs and routing
+- Harder to test and maintain
+
+**Always show toasts from component watchers, not from store actions.**
+

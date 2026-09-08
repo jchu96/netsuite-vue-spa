@@ -1,0 +1,235 @@
+---
+title: TypeScript Strict Patterns
+description: Enforce TypeScript usage and strict typing conventions across the codebase
+tags: [typescript, vue, pinia, strict-typing]
+lastUpdated: "2025-12-06"
+---
+
+# TypeScript Strict Patterns
+
+## Critical: All Code Must Be TypeScript
+
+**NEVER write plain JavaScript.** All files must use TypeScript:
+- Vue components: `<script setup lang="ts">`
+- Stores: `.ts` extension with typed state
+- Composables: `.ts` extension with typed parameters and returns
+- Utilities: `.ts` extension with explicit types
+
+## Vue Component Typing
+
+**✅ CORRECT - Typed script setup:**
+
+```vue
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+import type { MyData } from '../types/myData'
+
+interface Props {
+  items: MyData[]
+  loading?: boolean
+}
+
+interface Emits {
+  (e: 'select', item: MyData): void
+  (e: 'update:modelValue', value: string): void
+}
+
+const props = defineProps<Props>()
+const emit = defineEmits<Emits>()
+</script>
+```
+
+**❌ WRONG - Missing lang="ts" or untyped props:**
+
+```vue
+<script setup>
+const props = defineProps(['items', 'loading'])
+</script>
+```
+
+## Interface Patterns
+
+### Always Define Interfaces for Data Structures
+
+```typescript
+// ✅ CORRECT - Explicit interface
+export interface User {
+  id: number
+  name: string
+  email: string
+  isActive: boolean
+  createdAt: string
+  roles: string[]
+}
+
+// ❌ WRONG - Inline object types or any
+const user: any = { ... }
+const user: { [key: string]: any } = { ... }
+```
+
+### Use `type` vs `interface` Appropriately
+
+```typescript
+// Use interface for object shapes (extendable)
+interface ApiResponse<T> {
+  success: boolean
+  data: T
+  error?: { message: string; code: string }
+}
+
+// Use type for unions, intersections, mapped types
+type Status = 'pending' | 'active' | 'completed' | 'failed'
+type Nullable<T> = T | null
+```
+
+## Function Typing
+
+### Always Type Parameters and Return Values
+
+```typescript
+// ✅ CORRECT - Explicit types
+function calculateTotal(items: CartItem[], discount: number): number {
+  return items.reduce((sum, item) => sum + item.price, 0) * (1 - discount)
+}
+
+// ✅ CORRECT - Arrow function with types
+const formatDate = (date: string | Date): string => {
+  return new Date(date).toLocaleDateString()
+}
+
+// ❌ WRONG - Implicit any
+function processData(data) {
+  return data.map(item => item.value)
+}
+```
+
+## Composable Typing
+
+```typescript
+// ✅ CORRECT - Typed composable with Ref parameters
+export function useDataFetcher<T>(
+  endpoint: Ref<string>,
+  options?: { immediate?: boolean }
+): {
+  data: Ref<T | null>
+  loading: Ref<boolean>
+  error: Ref<string | null>
+  fetch: () => Promise<void>
+} {
+  const data = ref<T | null>(null) as Ref<T | null>
+  const loading = ref(false)
+  const error = ref<string | null>(null)
+  
+  // ... implementation
+  
+  return { data, loading, error, fetch }
+}
+```
+
+## Pinia Store Typing
+
+```typescript
+// ✅ CORRECT - Typed state, getters, and actions
+export const useUserStore = defineStore('user', {
+  state: () => ({
+    user: null as User | null,
+    users: [] as User[],
+    loading: false,
+    error: null as string | null,
+  }),
+  
+  getters: {
+    getUserById: (state) => (id: number): User | undefined => {
+      return state.users.find(u => u.id === id)
+    },
+    
+    activeUsers: (state): User[] => {
+      return state.users.filter(u => u.isActive)
+    },
+  },
+  
+  actions: {
+    async fetchUser(id: number): Promise<void> {
+      // ...
+    },
+  },
+})
+```
+
+## API Response Typing
+
+### Generic Response Wrapper
+
+```typescript
+// Define once, reuse everywhere
+interface APIResponse<T> {
+  success: boolean
+  data: T
+  error?: {
+    message: string
+    code: string
+    details?: unknown
+  }
+}
+
+// Usage
+const response: APIResponse<User[]> = await api.getUsers()
+if (response.success) {
+  // response.data is typed as User[]
+}
+```
+
+## Error Handling
+
+### Typed Error Catching
+
+```typescript
+// ✅ CORRECT - Type narrowing for errors
+try {
+  await api.saveData(data)
+} catch (error: unknown) {
+  const message = error instanceof Error ? error.message : 'Unknown error'
+  this.error = message
+}
+
+// ❌ WRONG - Implicit any
+} catch (error) {
+  console.log(error.message) // error is any
+}
+```
+
+## Avoid These Anti-Patterns
+
+| ❌ Anti-Pattern | ✅ Correct Pattern |
+|----------------|-------------------|
+| `any` type | Specific interface or union |
+| `as any` cast | Type guards or proper typing |
+| Untyped `ref()` | `ref<Type>(initialValue)` |
+| `Object` type | Specific interface |
+| `Function` type | Typed function signature |
+| Non-null assertion `!` (overuse) | Optional chaining `?.` or guards |
+
+## Ref Typing
+
+```typescript
+// ✅ CORRECT - Explicit ref types for nullable/complex types
+const count = ref<number>(0)
+const user = ref<User | null>(null)
+const items = ref<Item[]>([])
+const processingId = ref<string | null>(null)
+
+// ✅ Also correct - Type inference works for primitives
+const isLoading = ref(false)  // inferred as Ref<boolean>
+const name = ref('')          // inferred as Ref<string>
+
+// ❌ WRONG - Ambiguous null typing
+const user = ref(null)        // inferred as Ref<null> - can't assign User later!
+```
+
+## Best Practices
+
+1. **Enable strict mode** in `tsconfig.json`: `"strict": true`
+2. **Run type-check before commits**: `vue-tsc --noEmit`
+3. **Use type imports** for types-only: `import type { User } from ...`
+4. **Export types from dedicated files** in `/types/` directory
+5. **Document complex types** with JSDoc comments

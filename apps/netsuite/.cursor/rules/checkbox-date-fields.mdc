@@ -1,0 +1,113 @@
+---
+title: NetSuite Checkbox and Date Field Handling
+description: Patterns for handling NetSuite checkbox fields and date fields in SuiteScript
+tags: [netsuite, suitescript, checkboxes, dates, fields]
+lastUpdated: "2025-11-12"
+---
+
+# NetSuite Checkbox and Date Field Handling
+
+## Checkbox Field Handling
+
+### Reading Checkbox Values
+
+NetSuite checkbox fields can return **either** string format or boolean format depending on how they're accessed:
+- **record.getValue()**: May return `'T'` or `'F'` strings
+- **record.getValue()**: May also return `true` or `false` booleans
+- **Behavior varies** by NetSuite version, API, and context
+
+**Always use a helper function for checkbox validation:**
+
+```javascript
+// ❌ WRONG - Assumes string format only
+if (checkboxValue === 'T') {
+  // This fails when NetSuite returns boolean true
+}
+
+// ❌ WRONG - Assumes boolean format only
+if (checkboxValue === true) {
+  // This fails when NetSuite returns string 'T'
+}
+
+// ✅ CORRECT - Handles both formats
+function isCheckboxTrue(value) {
+  return value === 'T' || value === true;
+}
+
+if (isCheckboxTrue(checkboxValue)) {
+  // Works with both formats
+}
+```
+
+### DirectPay Implementation
+
+The `dpUtils.isCheckboxTrue()` helper is available in all DirectPay scripts:
+
+```javascript
+// Usage example
+const removeSefHold = platformRecord.getValue('custrecord_dp_remove_sef_hold');
+if (dpUtils.isCheckboxTrue(removeSefHold)) {
+  // Remove SEF hold logic
+}
+```
+
+### Setting Checkbox Values
+
+When setting checkbox fields with `setValue()`, always use **boolean values** (`true`/`false`), not strings:
+
+```javascript
+// ❌ WRONG - String format may not work
+txnRecord.setValue({fieldId: 'custbody_checkbox_field', value: 'T'});
+txnRecord.setValue({fieldId: 'custbody_checkbox_field', value: 'F'});
+
+// ✅ CORRECT - Boolean format is standard
+txnRecord.setValue({fieldId: 'custbody_checkbox_field', value: true});
+txnRecord.setValue({fieldId: 'custbody_checkbox_field', value: false});
+```
+
+**Key Points:**
+- **Reading**: Use helper function to handle both 'T' and true
+- **Writing**: Always use boolean true/false values
+- **Consistency**: This pattern works across SuiteScript 1.0 and 2.x
+- **Example**: See `DirectPay_FinalizationJob_SS.js` line 382 for boolean usage
+
+## Date Field Handling
+
+### Setting Date Fields with setValue()
+
+NetSuite date and datetime fields accept JavaScript Date objects directly:
+
+```javascript
+// ✅ CORRECT - Use JavaScript Date object
+txnRecord.setValue({fieldId: 'custbody_date_field', value: new Date()});
+projectRecord.setValue({fieldId: 'custrecord_datetime_field', value: new Date()});
+
+// Also works - Specific date
+const specificDate = new Date('2025-11-12');
+record.setValue({fieldId: 'datefield', value: specificDate});
+```
+
+**Important Notes:**
+- **No format module needed** for simple date field updates
+- **Timezone aware** - NetSuite stores dates based on user preferences
+- **Date vs DateTime** - Both field types accept Date objects
+- **Current date** - `new Date()` sets to current date and time
+
+**When NOT to use Date objects:**
+- When you need specific formatting (use `N/format` module)
+- When parsing user input (use `format.parse()`)
+- When working with date strings (convert to Date first)
+
+**Example Usage:**
+
+```javascript
+// SEF release date - set to today
+txnRecord.setValue({fieldId: 'custbody_sol_sefreleased', value: new Date()});
+
+// Finalization sent timestamp
+projectRecord.setValue({fieldId: 'custrecord_dp_finalization_sent_at', value: new Date()});
+
+// Operation start time
+progressRecord.setValue({fieldId: 'custrecord_dop_start_time', value: new Date()});
+```
+

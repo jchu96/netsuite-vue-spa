@@ -1,0 +1,511 @@
+/**
+ * TEMPLATE FILE - Do not deploy directly
+ * 
+ * Replace the following before use:
+ *   {PREFIX}              → your 2-4 letter prefix (e.g., dp, ob)
+ *   {PROJECT_NAME}        → full project name (e.g., DirectPay, OrderBuilder)
+ *   {PROJECT_NAME_DISPLAY} → human-readable name (e.g., Direct Pay, Order Builder)
+ *   {PROJECT_FOLDER}      → SuiteScripts folder name (e.g., com.example.myproject)
+ * 
+ * Rename this file to: {PROJECT_NAME}_SPA_Data_RL.js
+ */
+
+/**
+ * @NApiVersion 2.1
+ * @NScriptType Restlet
+ * @NModuleScope SameAccount
+ */
+
+define(['N/log', 'N/query', 'N/record', 'N/search', 'N/runtime', 'N/task', 'N/cache', './lib/{PREFIX}_utils'], 
+function(log, query, record, search, runtime, task, cache, utils) {
+    
+    /**
+     * {PROJECT_NAME} SPA Data RESTlet
+     * Comprehensive data operations for the {PROJECT_NAME_DISPLAY} SPA
+     * Handles all SPA ↔ NetSuite data communication
+     */
+    
+    /**
+     * Main POST handler with task-based routing
+     */
+    function post(requestBody) {
+        const startTime = Date.now();
+        let correlationId, response;
+        
+        try {
+            correlationId = utils.uuidv4();
+            
+            // Get current user context
+            const currentUser = runtime.getCurrentUser();
+            log.debug('{PROJECT_NAME} SPA RESTlet Request', {
+                correlationId: correlationId,
+                userId: currentUser.id,
+                userName: currentUser.name,
+                task: requestBody.task || 'unknown'
+            });
+            
+            // Route based on task
+            response = routeTask(requestBody, correlationId, currentUser);
+            
+            // Add metadata to response
+            response.correlationId = correlationId;
+            response.timestamp = new Date().toISOString();
+            response.user = {
+                id: currentUser.id,
+                name: currentUser.name,
+                email: currentUser.email
+            }; 
+            
+        } catch (error) {
+            log.error('{PROJECT_NAME} SPA RESTlet Error', {
+                correlationId: correlationId,
+                error: error.message,
+                stack: error.stack,
+                task: requestBody.task
+            });
+            
+            response = {
+                success: false,
+                error: {
+                    code: 'INTERNAL_ERROR',
+                    message: error.message,
+                    userMessage: 'An unexpected error occurred. Please try again.'
+                },
+                correlationId: correlationId
+            };
+        }
+        
+        const duration = Date.now() - startTime;
+        log.debug('{PROJECT_NAME} SPA RESTlet Response', {
+            correlationId: correlationId,
+            duration: duration + 'ms',
+            success: response.success !== false
+        });
+        
+        return JSON.stringify(response);
+    }
+    
+    /**
+     * Route requests based on task parameter
+     * Add your task handlers here
+     */
+    function routeTask(requestBody, correlationId, currentUser) {
+        const taskName = requestBody.task;
+        
+        if (!taskName) {
+            throw new Error('Task parameter is required');
+        }
+        
+        log.debug('Routing Task', { task: taskName, correlationId: correlationId });
+        
+        switch (taskName) {
+            // ==========================================
+            // Example: Cached lookup data
+            // ==========================================
+            case 'fetchLookupData':
+                return utils.getCached('lookupData', function() {
+                    return fetchLookupData();
+                }, 86400); // 24 hour cache
+            
+            // ==========================================
+            // Example: Main data fetch with filters
+            // ==========================================
+            case 'fetchRecords':
+                return fetchRecords(requestBody, correlationId);
+            
+            // ==========================================
+            // Example: Single record detail
+            // ==========================================
+            case 'fetchRecordDetail':
+                return fetchRecordDetail(requestBody, correlationId);
+            
+            // ==========================================
+            // Example: Trigger long-running operation
+            // ==========================================
+            case 'triggerOperation':
+                return triggerOperation(requestBody, correlationId, currentUser);
+            
+            // ==========================================
+            // Example: Get operation progress (for polling)
+            // ==========================================
+            case 'getOperationProgress':
+                return getOperationProgress(requestBody, correlationId);
+            
+            // ==========================================
+            // Cache management
+            // ==========================================
+            case 'clearCache':
+                return clearCache();
+            
+            default:
+                throw new Error('Unknown task: ' + taskName);
+        }
+    }
+    
+    // ==========================================
+    // Task Handlers - Customize for your project
+    // ==========================================
+    
+    /**
+     * Fetch lookup/reference data (cached)
+     * Customize the query for your project's needs
+     */
+    function fetchLookupData() {
+        log.audit('fetchLookupData', 'Starting lookup data fetch');
+        
+        try {
+            // Example: Fetch a list of options
+            const sql = `
+                SELECT 
+                    id,
+                    name
+                FROM customlist_example
+                WHERE isinactive = 'F'
+                ORDER BY name
+            `;
+            
+            const results = query.runSuiteQL({ query: sql }).asMappedResults();
+            
+            // Map SuiteQL lowercase field names to TypeScript camelCase
+            const mappedResults = results.map(function(r) {
+                return {
+                    id: r.id,
+                    name: r.name
+                };
+            });
+            
+            log.audit('fetchLookupData', 'Fetched ' + mappedResults.length + ' records');
+            
+            return {
+                success: true,
+                data: mappedResults
+            };
+            
+        } catch (error) {
+            log.error('fetchLookupData Error', error.message);
+            return {
+                success: false,
+                error: {
+                    code: 'FETCH_ERROR',
+                    message: error.message,
+                    userMessage: 'Failed to fetch lookup data'
+                }
+            };
+        }
+    }
+    
+    /**
+     * Fetch main records with filters
+     * Customize for your project's main data type
+     */
+    function fetchRecords(requestBody, correlationId) {
+        log.audit('fetchRecords', { correlationId: correlationId, filters: requestBody });
+        
+        // Build WHERE conditions based on request filters
+        const whereClauses = ["r.isinactive = 'F'"];
+        
+        if (requestBody.status) {
+            whereClauses.push("r.custrecord_{PREFIX}_status = '" + requestBody.status + "'");
+        }
+        
+        if (requestBody.dateFrom) {
+            whereClauses.push("r.created >= TO_DATE('" + requestBody.dateFrom + "', 'YYYY-MM-DD')");
+        }
+        
+        if (requestBody.dateTo) {
+            whereClauses.push("r.created <= TO_DATE('" + requestBody.dateTo + "', 'YYYY-MM-DD')");
+        }
+        
+        const sql = `
+            SELECT 
+                r.id,
+                r.name,
+                r.custrecord_{PREFIX}_status as status,
+                TO_CHAR(r.created, 'YYYY-MM-DD') as createdDate
+            FROM customrecord_{PREFIX}_main r
+            WHERE ${whereClauses.join(' AND ')}
+            ORDER BY r.created DESC
+        `;
+        
+        log.debug('fetchRecords SQL', sql);
+        
+        const results = query.runSuiteQL({ query: sql }).asMappedResults();
+        
+        // Map to camelCase for TypeScript
+        const mappedResults = results.map(function(r) {
+            return {
+                id: r.id,
+                name: r.name,
+                status: r.status,
+                createdDate: r.createddate
+            };
+        });
+        
+        log.audit('fetchRecords', 'Fetched ' + mappedResults.length + ' records');
+        
+        return {
+            success: true,
+            data: mappedResults,
+            count: mappedResults.length
+        };
+    }
+    
+    /**
+     * Fetch single record detail
+     */
+    function fetchRecordDetail(requestBody, correlationId) {
+        log.audit('fetchRecordDetail', { correlationId: correlationId, recordId: requestBody.recordId });
+        
+        if (!requestBody.recordId) {
+            return {
+                success: false,
+                error: {
+                    code: 'RECORD_ID_REQUIRED',
+                    message: 'recordId parameter is required',
+                    userMessage: 'Record ID is required'
+                }
+            };
+        }
+        
+        const sql = `
+            SELECT 
+                r.id,
+                r.name,
+                r.custrecord_{PREFIX}_status as status,
+                r.custrecord_{PREFIX}_description as description,
+                TO_CHAR(r.created, 'YYYY-MM-DD HH24:MI:SS') as createdDate,
+                TO_CHAR(r.lastmodified, 'YYYY-MM-DD HH24:MI:SS') as lastModifiedDate
+            FROM customrecord_{PREFIX}_main r
+            WHERE r.id = ${requestBody.recordId}
+        `;
+        
+        const results = query.runSuiteQL({ query: sql }).asMappedResults();
+        
+        if (results.length === 0) {
+            return {
+                success: false,
+                error: {
+                    code: 'RECORD_NOT_FOUND',
+                    message: 'Record not found',
+                    userMessage: 'The requested record was not found'
+                }
+            };
+        }
+        
+        const r = results[0];
+        
+        return {
+            success: true,
+            data: {
+                id: r.id,
+                name: r.name,
+                status: r.status,
+                description: r.description,
+                createdDate: r.createddate,
+                lastModifiedDate: r.lastmodifieddate
+            }
+        };
+    }
+    
+    /**
+     * Trigger a long-running operation
+     * Queues a scheduled script for async processing
+     */
+    function triggerOperation(requestBody, correlationId, currentUser) {
+        log.audit('triggerOperation', { 
+            correlationId: correlationId, 
+            recordId: requestBody.recordId,
+            operationType: requestBody.operationType 
+        });
+        
+        if (!requestBody.recordId) {
+            return {
+                success: false,
+                error: {
+                    code: 'RECORD_ID_REQUIRED',
+                    message: 'recordId parameter is required',
+                    userMessage: 'Record ID is required'
+                }
+            };
+        }
+        
+        if (!requestBody.operationType) {
+            return {
+                success: false,
+                error: {
+                    code: 'OPERATION_TYPE_REQUIRED',
+                    message: 'operationType parameter is required',
+                    userMessage: 'Operation type is required'
+                }
+            };
+        }
+        
+        // Check for existing in-progress operation
+        const existingOpQuery = `
+            SELECT id, custrecord_{PREFIX_OP}_operation_type as optype
+            FROM customrecord_{PREFIX}_operation_progress
+            WHERE custrecord_{PREFIX_OP}_parent_record = ${requestBody.recordId}
+              AND custrecord_{PREFIX_OP}_status IS NULL
+              AND isinactive = 'F'
+        `;
+        const existingOp = query.runSuiteQL({query: existingOpQuery}).asMappedResults();
+        
+        if (existingOp.length > 0) {
+            return {
+                success: false,
+                error: {
+                    code: 'OPERATION_IN_PROGRESS',
+                    message: 'Another operation (' + existingOp[0].optype + ') is in progress',
+                    userMessage: 'Please wait for the current operation to complete'
+                }
+            };
+        }
+        
+        // Queue scheduled script
+        const scheduledTask = task.create({
+            taskType: task.TaskType.SCHEDULED_SCRIPT,
+            scriptId: 'customscript_{PREFIX}_operation_ss',
+            deploymentId: 'customdeploy_{PREFIX}_op',
+            params: {
+                'custscript_{PREFIX}_op_record_id': requestBody.recordId,
+                'custscript_{PREFIX}_op_type': requestBody.operationType,
+                'custscript_{PREFIX}_op_correlation_id': correlationId,
+                'custscript_{PREFIX}_op_triggered_by': currentUser.name,
+                'custscript_{PREFIX}_op_triggered_by_id': currentUser.id
+            }
+        });
+        
+        const taskId = scheduledTask.submit();
+        
+        log.audit('triggerOperation', 'Scheduled task submitted: ' + taskId);
+        
+        return {
+            success: true,
+            data: {
+                taskId: taskId.toString(),
+                correlationId: correlationId,
+                message: 'Operation queued successfully'
+            }
+        };
+    }
+    
+    /**
+     * Get operation progress (for frontend polling)
+     */
+    function getOperationProgress(requestBody, correlationId) {
+        log.debug('getOperationProgress', { 
+            correlationId: correlationId, 
+            recordId: requestBody.recordId 
+        });
+        
+        if (!requestBody.recordId) {
+            return {
+                success: false,
+                error: {
+                    code: 'RECORD_ID_REQUIRED',
+                    message: 'recordId parameter is required',
+                    userMessage: 'Record ID is required'
+                }
+            };
+        }
+        
+        // Build query with optional operation type filter
+        let progressQuery = `
+            SELECT TOP 1
+                id,
+                custrecord_{PREFIX_OP}_operation_type as operationtype,
+                custrecord_{PREFIX_OP}_status as status,
+                custrecord_{PREFIX_OP}_progress_data as progressdata
+            FROM customrecord_{PREFIX}_operation_progress
+            WHERE custrecord_{PREFIX_OP}_parent_record = ${requestBody.recordId}
+              AND isinactive = 'F'
+        `;
+        
+        if (requestBody.operationType) {
+            progressQuery += " AND custrecord_{PREFIX_OP}_operation_type = '" + requestBody.operationType + "'";
+        }
+        
+        progressQuery += ' ORDER BY custrecord_{PREFIX_OP}_start_time DESC';
+        
+        const result = query.runSuiteQL({query: progressQuery}).asMappedResults();
+        
+        if (!result || result.length === 0) {
+            return {
+                success: true,
+                data: { hasProgress: false }
+            };
+        }
+        
+        let progressData = {};
+        try {
+            progressData = JSON.parse(result[0].progressdata || '{}');
+        } catch (e) {
+            log.error('getOperationProgress', 'Failed to parse progress data: ' + e.message);
+        }
+        
+        return {
+            success: true,
+            data: {
+                hasProgress: true,
+                operationType: result[0].operationtype,
+                status: result[0].status,
+                ...progressData
+            }
+        };
+    }
+    
+    /**
+     * Clear all caches
+     */
+    function clearCache() {
+        log.audit('clearCache', 'Clearing all N/cache entries');
+        
+        try {
+            const cacheInstance = cache.getCache({
+                name: '{PREFIX}Cache',
+                scope: cache.Scope.PUBLIC
+            });
+            
+            // Clear specific known keys
+            const keys = ['lookupData'];
+            let clearedCount = 0;
+            
+            keys.forEach(function(key) {
+                try {
+                    cacheInstance.remove({ key: key });
+                    clearedCount++;
+                    log.debug('clearCache', 'Cleared cache key: ' + key);
+                } catch (e) {
+                    log.debug('clearCache', 'Cache key not found or already cleared: ' + key);
+                }
+            });
+            
+            log.audit('clearCache', 'Successfully cleared ' + clearedCount + ' cache keys');
+            
+            return {
+                success: true,
+                data: {
+                    message: 'Cache cleared successfully',
+                    keysCleared: clearedCount
+                }
+            };
+            
+        } catch (error) {
+            log.error('clearCache Error', error.message);
+            
+            return {
+                success: false,
+                error: {
+                    code: 'CACHE_CLEAR_ERROR',
+                    message: error.message,
+                    userMessage: 'Failed to clear cache'
+                }
+            };
+        }
+    }
+    
+    return {
+        post: post
+    };
+});
+
