@@ -13,8 +13,8 @@ define(['N/file', 'N/url', 'N/runtime', 'N/log'], (file, url, runtime, log) => {
       return;
     }
     try {
-      const html = file.load({ id: 'SuiteScripts/{PROJECT_FOLDER}/app/index.html' }).getContents();
-      const endpoint = url.resolveScript({ scriptId: 'customscript_{PREFIX}_hello_rl', deploymentId: 'customdeploy_{PREFIX}_hello_rl', returnExternalUrl: false });
+      const html = file.load({ id: 'SuiteScripts/netsuite-vue-spa/app/index.html' }).getContents();
+      const endpoint = url.resolveScript({ scriptId: 'customscript_nvs_hello_rl', deploymentId: 'customdeploy_nvs_hello_rl', returnExternalUrl: false });
       const attribute = endpoint.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
       if (!html.includes('<!--NETSUITE_CONFIG-->')) throw new Error('Missing configuration slot');
       context.response.setHeader({ name: 'Content-Type', value: 'text/html; charset=utf-8' });

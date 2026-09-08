@@ -1,0 +1,15 @@
+<customrecordtype scriptid="customrecord_{PREFIX}_hello">
+  <accesstype>USEPERMISSIONLIST</accesstype>
+  <allowattachments>F</allowattachments>
+  <allowinlineediting>F</allowinlineediting>
+  <allowmobileaccess>F</allowmobileaccess>
+  <enablenametranslation>F</enablenametranslation>
+  <includeinsearchmenu>T</includeinsearchmenu>
+  <includename>T</includename>
+  <isinactive>F</isinactive>
+  <recordname>{PROJECT_NAME_DISPLAY}</recordname>
+  <showcreationdate>F</showcreationdate>
+  <showid>T</showid>
+  <showlastmodified>F</showlastmodified>
+  <shownotes>F</shownotes>
+</customrecordtype>

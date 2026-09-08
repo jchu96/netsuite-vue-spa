@@ -1,0 +1,15 @@
+<customrecordtype scriptid="customrecord_nvs_hello">
+  <accesstype>USEPERMISSIONLIST</accesstype>
+  <allowattachments>F</allowattachments>
+  <allowinlineediting>F</allowinlineediting>
+  <allowmobileaccess>F</allowmobileaccess>
+  <enablenametranslation>F</enablenametranslation>
+  <includeinsearchmenu>T</includeinsearchmenu>
+  <includename>T</includename>
+  <isinactive>F</isinactive>
+  <recordname>Hello Record</recordname>
+  <showcreationdate>F</showcreationdate>
+  <showid>T</showid>
+  <showlastmodified>F</showlastmodified>
+  <shownotes>F</shownotes>
+</customrecordtype>

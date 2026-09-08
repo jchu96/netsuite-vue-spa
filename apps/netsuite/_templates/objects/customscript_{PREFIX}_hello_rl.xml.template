@@ -1,0 +1,16 @@
+<restlet scriptid="customscript_{PREFIX}_hello_rl">
+  <description>Read-only hello record example</description>
+  <isinactive>F</isinactive>
+  <name>{PROJECT_NAME_DISPLAY} RL</name>
+  <notifyadmins>F</notifyadmins>
+  <notifyowner>F</notifyowner>
+  <scriptfile>[/SuiteScripts/{PROJECT_FOLDER}/{PROJECT_NAME}_SPA_Data_RL.js]</scriptfile>
+  <scriptdeployments>
+    <scriptdeployment scriptid="customdeploy_{PREFIX}_hello_rl">
+      <isdeployed>T</isdeployed>
+      <loglevel>ERROR</loglevel>
+      <status>TESTING</status>
+      <title>{PROJECT_NAME_DISPLAY} RL</title>
+    </scriptdeployment>
+  </scriptdeployments>
+</restlet>

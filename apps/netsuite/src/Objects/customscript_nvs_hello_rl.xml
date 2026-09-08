@@ -1,0 +1,16 @@
+<restlet scriptid="customscript_nvs_hello_rl">
+  <description>Read-only hello record example</description>
+  <isinactive>F</isinactive>
+  <name>Hello Record RL</name>
+  <notifyadmins>F</notifyadmins>
+  <notifyowner>F</notifyowner>
+  <scriptfile>[/SuiteScripts/netsuite-vue-spa/Hello_SPA_Data_RL.js]</scriptfile>
+  <scriptdeployments>
+    <scriptdeployment scriptid="customdeploy_nvs_hello_rl">
+      <isdeployed>T</isdeployed>
+      <loglevel>ERROR</loglevel>
+      <status>TESTING</status>
+      <title>Hello Record RL</title>
+    </scriptdeployment>
+  </scriptdeployments>
+</restlet>

@@ -1,0 +1,16 @@
+<suitelet scriptid="customscript_{PREFIX}_hello_sl">
+  <description>Read-only hello record example</description>
+  <isinactive>F</isinactive>
+  <name>{PROJECT_NAME_DISPLAY} SL</name>
+  <notifyadmins>F</notifyadmins>
+  <notifyowner>F</notifyowner>
+  <scriptfile>[/SuiteScripts/{PROJECT_FOLDER}/{PROJECT_NAME}_SPA_Render_SL.js]</scriptfile>
+  <scriptdeployments>
+    <scriptdeployment scriptid="customdeploy_{PREFIX}_hello_sl">
+      <isdeployed>T</isdeployed>
+      <loglevel>ERROR</loglevel>
+      <status>TESTING</status>
+      <title>{PROJECT_NAME_DISPLAY} SL</title>
+    </scriptdeployment>
+  </scriptdeployments>
+</suitelet>

@@ -1,12 +1,7 @@
 {
-  "name": "suitecloud-project",
+  "name": "netsuite-vue-spa-sdf",
   "version": "1.0.0",
-  "scripts": {
-    "test": "jest"
-  },
-  "devDependencies": {
-    "jest": "29.7.0",
-    "@types/jest": "29.5.14",
-    "@oracle/suitecloud-unit-testing": "^1.7.0"
-  }
+  "private": true,
+  "scripts": { "test": "jest --runInBand", "validate": "suitecloud project:validate" },
+  "devDependencies": { "jest": "29.7.0", "@oracle/suitecloud-unit-testing": "1.9.0" }
 }

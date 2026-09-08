@@ -17,7 +17,7 @@ define(['N/query', 'N/runtime', 'N/log'], (query, runtime, log) => {
     try {
       // The only identifiers come from validated generator configuration. All values are bound.
       const rows = query.runSuiteQL({
-        query: 'SELECT TOP 1 id, name FROM customrecord_{PREFIX}_hello WHERE name = ? AND isinactive = ? ORDER BY id',
+        query: 'SELECT TOP 1 id, name FROM customrecord_nvs_hello WHERE name = ? AND isinactive = ? ORDER BY id',
         params: [body.name, 'F'],
         metaDataProvider: 'SUITE_QL'
       }).asMappedResults();
