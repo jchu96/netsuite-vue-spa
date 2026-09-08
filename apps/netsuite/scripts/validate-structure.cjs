@@ -9,6 +9,25 @@ function walk(root) {
     return entry.isDirectory() ? walk(file) : [file];
   });
 }
+// Review incident: unsafe one-element deployment changes passed structural validation.
+// Retire these defaults if the template's documented deployment contract changes.
+function validatePosture(body, type, file) {
+  const deployments = [].concat(body.scriptdeployments?.scriptdeployment || []);
+  const fail = (element, message) => { throw new Error(file + ': <' + element + '> ' + message); };
+  if (['restlet', 'suitelet'].includes(type) && !deployments.length) fail('scriptdeployment', 'is required');
+  for (const deployment of deployments) {
+    if (deployment.status !== 'TESTING') fail('status', 'must be TESTING');
+    if (type === 'suitelet' && deployment.isonline !== 'F') fail('isonline', 'must be F');
+    const checkRestricted = node => {
+      for (const [element, value] of Object.entries(node)) {
+        if (element === 'allroles' && [].concat(value).includes('T')) fail(element, 'must not be T');
+        if (element === 'runasrole' && [].concat(value).includes('ADMINISTRATOR')) fail(element, 'must not be ADMINISTRATOR');
+        if (value && typeof value === 'object') checkRestricted(value);
+      }
+    };
+    checkRestricted(deployment);
+  }
+}
 function validateStructure(root, { requireArtifact = true } = {}) {
   const parse = file => {
     const text = fs.readFileSync(file, 'utf8');
@@ -46,6 +65,7 @@ function validateStructure(root, { requireArtifact = true } = {}) {
     const body = parsed[type];
     if (!body?.['@_scriptid'] || ids.has(body['@_scriptid'])) throw new Error('Missing or duplicate object id');
     ids.add(body['@_scriptid']);
+    validatePosture(body, type, path.relative(root, object));
     xmlTexts.push(fs.readFileSync(object, 'utf8'));
     if (['restlet', 'suitelet'].includes(type)) {
       if (typeof body.scriptfile !== 'string' || !/^\[\/SuiteScripts\/[^\]]+\.js\]$/.test(body.scriptfile)) throw new Error('Invalid scriptfile reference');

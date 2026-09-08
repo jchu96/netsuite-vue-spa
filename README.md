@@ -79,6 +79,10 @@ The owner performs account setup and validation separately. The [SDF deployment 
 
 Start with the [SDF project README](apps/netsuite/README.md), [architecture](apps/netsuite/docs/ARCHITECTURE.md), [API contract](apps/netsuite/docs/API.md), and [guided code walkthrough](apps/netsuite/docs/LEARNING.md). The [skill application map](docs/SKILLS.md) shows how the included NetSuite guidance applies to this template.
 
+## Deployment scope
+
+This template provides an account-free demo and checks, plus instructions for owner-run sandbox validation. Account setup, account validation and deployment are separate owner actions. Before production use, adopters must supply an account-specific rollout and approval plan, rollback and recovery procedure, dependency and generated-code upgrade process, and monitoring with operational verification and incident ownership. Sandbox success alone does not establish production readiness.
+
 ## Troubleshooting
 
 | Symptom | What to check |
