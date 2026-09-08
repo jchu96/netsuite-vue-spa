@@ -8,4 +8,4 @@
 - Added build-to-SDF byte verification, generated-script tests and an account-free structural checker.
 - Documented the owner's separate sandbox validation, permissions and deployment steps.
 
-This version has account-free verification only; it has not been deployed by the template build or tests.
+Builds and tests remain account-free; owner-authorized sandbox deployment is a separate operation.

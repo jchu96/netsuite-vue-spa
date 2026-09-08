@@ -1,6 +1,6 @@
 # Owner-run sandbox deployment
 
-Documented 2026-09-08. These steps require an owner's explicit account authorization and are **not** part of the account-free quickstart or automated acceptance. No live-account validation or deployment is claimed by this template.
+Documented 2026-09-08. These steps require an owner's explicit account authorization and are **not** part of the account-free quickstart or automated acceptance. Builds and tests do not perform live-account validation or deployment.
 
 ## Prepare
 
@@ -29,7 +29,7 @@ The tested CLI requires account context even for local `project:validate`. Local
 
 - Both deployments begin in **TESTING**. Test as the authorized script owner initially; an ordinary user's audience must be configured deliberately before release.
 - Keep the Suitelet's anonymous access disabled (`isonline=F`) and its current-role execution. Do not add Administrator run-as or universal audiences.
-- The generated `customrole_nvs_hello_viewer` and `customrecord_nvs_hello` have matching **View** permissions. NetSuite requires a nonempty permission list when creating this record type; server validation and deployment preview alone may not detect an empty list. The role is unassigned: review account-specific role settings and assign it deliberately before viewer testing. It supplies only the Hello Record permission; it does not grant token creation, integration access or administrative permissions.
+- The generated `customrole_nvs_hello_viewer` and `customrecord_nvs_hello` have matching **View** permissions. NetSuite requires a nonempty permission list when creating this record type; server validation and deployment preview alone may not detect an empty list. The role is unassigned: review account-specific role settings and assign it deliberately before viewer testing. The template declares only the Hello Record permission and no token, integration or administrative permissions. NetSuite can add permissions while creating a role; inspect the deployed permission list before assigning it.
 - Give a fixture maintainer enough permission to create one Hello Record named **Hello world**, then test lookup with the viewer role. Do not grant Create/Edit just to read it.
 - If required by the account for the hosting role, the bundled permission reference identifies `LIST_FILECABINET` as Documents and Files; use **View**, not Create, for rendering. Confirm this requirement in the sandbox rather than granting it automatically.
 - Obtain the internal Suitelet URL from its deployment. The Suitelet resolves the RESTlet path; no account hostname belongs in the production build.

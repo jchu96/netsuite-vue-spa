@@ -15,7 +15,7 @@ Both scripts use `@NApiVersion 2.1` and `@NModuleScope SameAccount`.
 
 | XML under src/Objects | Object ID | Deployment / access |
 |---|---|---|
-| [customrole_nvs_hello_viewer.xml](../src/Objects/customrole_nvs_hello_viewer.xml) | `customrole_nvs_hello_viewer` | Unassigned role; View on Hello Record only; no core administration permission |
+| [customrole_nvs_hello_viewer.xml](../src/Objects/customrole_nvs_hello_viewer.xml) | `customrole_nvs_hello_viewer` | Unassigned role; declares View on Hello Record; no core administration permission; inspect account-added defaults |
 | [customrecord_nvs_hello.xml](../src/Objects/customrecord_nvs_hello.xml) | `customrecord_nvs_hello` | Permission-list access; built-in Name field enabled; no custom fields |
 | [customscript_nvs_hello_rl.xml](../src/Objects/customscript_nvs_hello_rl.xml) | `customscript_nvs_hello_rl` | `customdeploy_nvs_hello_rl`; deployed, TESTING, ERROR logging |
 | [customscript_nvs_hello_sl.xml](../src/Objects/customscript_nvs_hello_sl.xml) | `customscript_nvs_hello_sl` | `customdeploy_nvs_hello_sl`; deployed, TESTING, ERROR logging, anonymous access disabled |
