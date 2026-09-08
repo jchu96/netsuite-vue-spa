@@ -93,4 +93,6 @@ Start with the [SDF project README](apps/netsuite/README.md), [architecture](app
 
 Derived from [Bibek Shrestha's NetSuite Vue/Vite SPA](https://github.com/BibekStha/netsuite-vue-vite-spa/tree/4fe7a9a010d8f9b8ff405b0c5c9139821ddecefa), pinned to that commit. The original MIT notice is retained in [apps/vite-spa/LICENSE](apps/vite-spa/LICENSE). This is an independently maintained derivative; no GitHub fork relationship is implied.
 
+See [Changes from upstream](docs/CHANGES-FROM-UPSTREAM.md) for the verified file inventory, replacements, additions and licensing details.
+
 Project code and the six public house-skill editions use the [MIT license](LICENSE). The eight Oracle NetSuite skills retain **UPL 1.0** licenses and pinned provenance. [Third-party notices](THIRD_PARTY_NOTICES.md) include the upstream MIT notice and the historical CryptoJS v3.1.2 notice. The current signer uses Node's built-in crypto; CryptoJS is no longer bundled.
