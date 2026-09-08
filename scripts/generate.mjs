@@ -3,7 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export function templateValues(config) {
-  if (!config || Object.keys(config).sort().join(',') !== 'displayName,prefix,projectFolder,projectName' ||
+  if (!config || Object.values(config).some(value => typeof value !== 'string') || Object.keys(config).sort().join(',') !== 'displayName,prefix,projectFolder,projectName' ||
       !/^[a-z]{2,6}$/.test(config.prefix) || !/^[A-Z][A-Za-z0-9]{0,19}$/.test(config.projectName) ||
       !/^[A-Za-z][A-Za-z0-9 .-]{0,49}$/.test(config.displayName) ||
       !/^[a-z][a-z0-9.-]{2,49}$/.test(config.projectFolder) || config.projectFolder.includes('..')) {
@@ -38,10 +38,13 @@ export async function generate(config, destination, { overwrite = false } = {}) 
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const args = process.argv.slice(2);
-  const force = args.includes('--force');
-  const outputIndex = args.indexOf('--output');
-  const destination = outputIndex >= 0 ? args[outputIndex + 1] : path.join(root, 'apps/netsuite/src');
-  if (!destination || args.some((arg, i) => arg !== '--force' && arg !== '--output' && i !== outputIndex + 1)) throw new Error('Usage: npm run generate -- [--force] [--output PATH]');
+  let force = false;
+  let destination = path.join(root, 'apps/netsuite/src');
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === '--force') force = true;
+    else if (args[i] === '--output' && args[i + 1] && !args[i + 1].startsWith('--')) destination = args[++i];
+    else throw new Error('Usage: npm run generate -- [--force] [--output PATH]');
+  }
   const config = JSON.parse(await readFile(path.join(root, 'template.config.json'), 'utf8'));
   const files = await generate(config, path.resolve(destination), { overwrite: force });
   console.log('Generated ' + files.length + ' SDF files');

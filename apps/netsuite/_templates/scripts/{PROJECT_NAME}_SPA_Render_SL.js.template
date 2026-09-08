@@ -8,7 +8,8 @@ define(['N/file', 'N/url', 'N/runtime', 'N/log'], (file, url, runtime, log) => {
     const reference = Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
     context.response.setHeader({ name: 'Cache-Control', value: 'no-store' });
     context.response.setHeader({ name: 'X-Content-Type-Options', value: 'nosniff' });
-    if (context.request.method !== 'GET' || Number(runtime.getCurrentUser().id) <= 0) {
+    const userId = Number(runtime.getCurrentUser().id);
+    if (context.request.method !== 'GET' || !Number.isSafeInteger(userId) || userId <= 0) {
       context.response.write('Access denied');
       return;
     }

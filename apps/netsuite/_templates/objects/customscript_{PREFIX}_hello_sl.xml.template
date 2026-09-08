@@ -8,6 +8,7 @@
   <scriptdeployments>
     <scriptdeployment scriptid="customdeploy_{PREFIX}_hello_sl">
       <isdeployed>T</isdeployed>
+      <isonline>F</isonline>
       <loglevel>ERROR</loglevel>
       <status>TESTING</status>
       <title>{PROJECT_NAME_DISPLAY} SL</title>

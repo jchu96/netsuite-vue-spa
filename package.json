@@ -2,13 +2,15 @@
   "name": "netsuite-vue-spa",
   "version": "1.0.0",
   "private": true,
-  "engines": { "node": ">=22.12.0" },
+  "engines": {
+    "node": ">=22.12.0"
+  },
   "scripts": {
     "setup": "npm ci --prefix apps/vite-spa && npm ci --prefix apps/netsuite",
     "dev": "npm run dev --prefix apps/vite-spa",
     "build": "npm run build --prefix apps/vite-spa",
     "test": "npm test --prefix apps/vite-spa && npm test --prefix apps/netsuite",
-    "check": "npm run build && npm test",
+    "check": "npm run build && npm test && npm run check:structure --prefix apps/netsuite",
     "generate": "node scripts/generate.mjs"
   }
 }

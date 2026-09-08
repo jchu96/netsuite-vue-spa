@@ -6,7 +6,8 @@
 define(['N/query', 'N/runtime', 'N/log'], (query, runtime, log) => {
   function post(body) {
     const reference = Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
-    if (Number(runtime.getCurrentUser().id) <= 0) {
+    const userId = Number(runtime.getCurrentUser().id);
+    if (!Number.isSafeInteger(userId) || userId <= 0) {
       return { success: false, error: { code: 'ACCESS_DENIED', message: 'Access denied', reference } };
     }
     if (!body || typeof body !== 'object' || Array.isArray(body) ||

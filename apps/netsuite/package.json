@@ -2,6 +2,14 @@
   "name": "netsuite-vue-spa-sdf",
   "version": "1.0.0",
   "private": true,
-  "scripts": { "test": "jest --runInBand", "validate": "suitecloud project:validate" },
-  "devDependencies": { "jest": "29.7.0", "@oracle/suitecloud-unit-testing": "1.9.0" }
+  "scripts": {
+    "test": "jest --runInBand",
+    "validate": "suitecloud project:validate",
+    "check:structure": "node scripts/validate-structure.cjs"
+  },
+  "devDependencies": {
+    "@oracle/suitecloud-unit-testing": "1.9.0",
+    "fast-xml-parser": "5.11.1",
+    "jest": "29.7.0"
+  }
 }

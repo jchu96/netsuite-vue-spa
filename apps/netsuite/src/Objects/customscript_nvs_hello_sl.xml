@@ -8,6 +8,7 @@
   <scriptdeployments>
     <scriptdeployment scriptid="customdeploy_nvs_hello_sl">
       <isdeployed>T</isdeployed>
+      <isonline>F</isonline>
       <loglevel>ERROR</loglevel>
       <status>TESTING</status>
       <title>Hello Record SL</title>
